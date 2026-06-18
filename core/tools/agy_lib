@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import shutil
+import re
+import sys
+import yaml
+
+# Determine the root of the Antigravity Engine repository
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ENGINE_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+
+# Directories to search
+SEARCH_DIRS = [
+    "workflows/local_essential",
+    "workflows/local_optional",
+    "skills",
+    "core/tools",
+    "rules/rules_local"
+]
+
+import datetime
+
+LOG_DIR = os.path.join(ENGINE_ROOT, "logs", "agy_lib")
+os.makedirs(LOG_DIR, exist_ok=True)
+today = datetime.datetime.now().strftime('%Y-%m-%d')
+LOG_FILE = os.path.join(LOG_DIR, f"{today}.log")
+
+def write_log(level, msg):
+    full_msg = f"[{level}] [agy_lib] {msg}"
+    print(full_msg, file=sys.stderr if level == 'ERROR' else sys.stdout)
+    try:
+        with open(LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now().isoformat()}] {full_msg}\n")
+    except Exception:
+        pass
+
+def log_info(msg):
+    write_log('INFO', msg)
+
+def log_error(msg):
+    write_log('ERROR', msg)
+
+def extract_metadata(filepath):
+    """Extracts YAML frontmatter or HTML version comments."""
+    metadata = {"version": "Unknown", "description": "No description provided."}
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Try parsing YAML frontmatter
+            yaml_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL)
+            if yaml_match:
+                try:
+                    parsed = yaml.safe_load(yaml_match.group(1))
+                    if isinstance(parsed, dict):
+                        metadata["version"] = parsed.get("version", metadata["version"])
+                        metadata["description"] = parsed.get("description", metadata["description"])
+                except Exception:
+                    pass
+            
+            # Try parsing HTML comments if version not found
+            if metadata["version"] == "Unknown":
+                version_match = re.search(r'<!--\s*VERSION:\s*(.*?)\s*-->', content)
+                if version_match:
+                    metadata["version"] = version_match.group(1).strip()
+                    
+    except Exception as e:
+        pass
+    return metadata
+
+def cmd_search(args):
+    query = args.query.lower()
+    found = 0
+    print(f"Searching Engine Library for '{query}'...")
+    print("-" * 60)
+    
+    for search_dir in SEARCH_DIRS:
+        abs_search_dir = os.path.join(ENGINE_ROOT, search_dir)
+        if not os.path.exists(abs_search_dir):
+            continue
+            
+        for root, _, files in os.walk(abs_search_dir):
+            for file in files:
+                if not file.endswith(('.md', '.py', '.sh')):
+                    continue
+                    
+                filepath = os.path.join(root, file)
+                rel_path = os.path.relpath(filepath, ENGINE_ROOT)
+                
+                # Check filename
+                if query in file.lower():
+                    meta = extract_metadata(filepath)
+                    print(f"Path: {rel_path}\nVersion: {meta['version']}\nDesc: {meta['description']}\n")
+                    found += 1
+                    continue
+                    
+                # Read content to search
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        if query in f.read().lower():
+                            meta = extract_metadata(filepath)
+                            print(f"Path: {rel_path}\nVersion: {meta['version']}\nDesc: {meta['description']}\n")
+                            found += 1
+                except Exception:
+                    pass
+    
+    if found == 0:
+        print("No matching components found.")
+    else:
+        print("-" * 60)
+        print(f"Found {found} components. Use 'agy_lib fetch <path>' to copy to your project.")
+
+def cmd_fetch(args):
+    rel_path = args.path
+    src_path = os.path.join(ENGINE_ROOT, rel_path)
+    
+    if not os.path.exists(src_path):
+        log_error(f"Source file not found in Engine: {src_path}")
+        sys.exit(1)
+        
+    target_project_root = os.getcwd()
+    
+    # Determine destination based on type
+    if "workflows/" in rel_path:
+        dest_dir = os.path.join(target_project_root, ".agents", "workflows")
+    elif "rules/" in rel_path:
+        dest_dir = os.path.join(target_project_root, ".agents", "rules")
+    elif "skills/" in rel_path:
+        # Keep relative path under skills
+        skill_subpath = os.path.relpath(src_path, os.path.join(ENGINE_ROOT, "skills"))
+        dest_dir = os.path.join(target_project_root, ".gemini", "skills", os.path.dirname(skill_subpath))
+    else:
+        dest_dir = os.path.join(target_project_root, "scripts")
+        
+    os.makedirs(dest_dir, exist_ok=True)
+    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+    
+    # Safe copy
+    if os.path.exists(dest_path) and not args.force:
+        log_error(f"Destination file already exists: {dest_path}. Use --force to overwrite.")
+        sys.exit(1)
+        
+    shutil.copy2(src_path, dest_path)
+    log_info(f"Fetched {os.path.basename(src_path)} to {dest_path}")
+
+def cmd_sync(args):
+    log_info("Starting synchronization of Local Essential workflows...")
+    target_project_root = os.getcwd()
+    local_workflows_dir = os.path.join(target_project_root, ".agents", "workflows")
+    
+    if not os.path.exists(local_workflows_dir):
+        log_error(f"No local workflows directory found at {local_workflows_dir}")
+        sys.exit(1)
+        
+    master_essential_dir = os.path.join(ENGINE_ROOT, "workflows", "local_essential")
+    if not os.path.exists(master_essential_dir):
+        log_error("Master local_essential directory not found in Engine.")
+        sys.exit(1)
+        
+    synced = 0
+    for file in os.listdir(local_workflows_dir):
+        if not file.endswith('.md'):
+            continue
+            
+        local_path = os.path.join(local_workflows_dir, file)
+        master_path = os.path.join(master_essential_dir, file)
+        
+        if os.path.exists(master_path):
+            local_meta = extract_metadata(local_path)
+            master_meta = extract_metadata(master_path)
+            
+            if local_meta['version'] != master_meta['version'] or args.force:
+                shutil.copy2(master_path, local_path)
+                log_info(f"Updated {file} (Version: {local_meta['version']} -> {master_meta['version']})")
+                synced += 1
+            else:
+                log_info(f"{file} is up to date (Version: {local_meta['version']})")
+                
+    log_info(f"Sync complete. Updated {synced} files.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Antigravity Library Manager (agy_lib)")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    
+    # Search command
+    parser_search = subparsers.add_parser("search", help="Search the Engine library")
+    parser_search.add_argument("query", type=str, help="Search query string")
+    
+    # Fetch command
+    parser_fetch = subparsers.add_parser("fetch", help="Fetch a component into the current project")
+    parser_fetch.add_argument("path", type=str, help="Relative path of the component in the Engine")
+    parser_fetch.add_argument("--force", action="store_true", help="Overwrite if exists")
+    
+    # Sync command
+    parser_sync = subparsers.add_parser("sync", help="Sync local essential workflows with master library")
+    parser_sync.add_argument("--force", action="store_true", help="Force sync ignoring versions")
+    
+    args = parser.parse_args()
+    
+    if args.command == "search":
+        cmd_search(args)
+    elif args.command == "fetch":
+        cmd_fetch(args)
+    elif args.command == "sync":
+        cmd_sync(args)
