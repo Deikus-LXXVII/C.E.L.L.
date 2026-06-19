@@ -1,0 +1,39 @@
+---
+name: version_control
+description: "Core standards for autonomous version control operations."
+type: domain_rules
+labels:
+  - version-control
+  - git
+  - standards
+danger_level: 1
+danger_details: "Low risk. Contains standards and conventions, no active scripts."
+---
+
+# Version Control Standards
+
+## 1. Safety First
+- **No force pushing** to protected branches (main, master, dev) unless explicitly authorized.
+- Always fetch and rebase before pushing to avoid divergent branches.
+- Never blindly commit all files (`git commit -a`). Selectively add files that belong to the logical commit.
+
+## 2. Semantic Commit Messages
+- Follow Conventional Commits.
+- Format: `<type>(<scope>): <subject>`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- The subject must be written in the imperative mood.
+- Provide a body for complex changes to explain *why* the change was made.
+
+## 3. Branch Management
+- Branch naming convention: `<type>/<issue-number>-<short-description>` or `<type>/<short-description>`.
+- Keep branches short-lived.
+- Always branch off the main integration branch for new features.
+
+## 4. Diff Analysis
+- Always review `git diff` before staging and committing.
+- Ensure no accidental debug logs, secret tokens, or unintended temporary files are included.
+- Split unrelated changes into separate commits.
+
+## 5. Automation Autonomy
+- When executing in the background, ensure commands are non-interactive.
+- Validate branch state before attempting automated operations.
