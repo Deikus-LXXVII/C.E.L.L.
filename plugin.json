@@ -5,7 +5,17 @@
   "mcpServers": {
     "AntiengineFeatures": {
       "command": "node",
-      "args": ["${pluginDir}/dist/mcp-server.js"]
+      "args": ["${pluginDir}/dist/mcp-server.js"],
+      "enabledTools": [
+        "search_library",
+        "get_resource_content",
+        "save_to_library",
+        "init_project",
+        "get_taxonomy",
+        "register_label",
+        "import_resource",
+        "finish_builder_task"
+      ]
     }
   }
 }
