@@ -23,9 +23,10 @@ The following rules govern the agent's fundamental behavior within this initiali
 7. TRACKING: Prepend every response with: "[Current Stage: X/Y | Focus: <Task> | Blockers: None / <Specific Issue>]". End coding responses with a "Verification: ..." block.
 8. EMPIRICAL VERIFICATION (ZERO TRUST): Never claim that code or scripts work without verifying them first. You MUST use terminal commands to compile (e.g. npx tsc --noEmit), lint, or test the code before presenting it as a finished product.
 9. ANTIGRAVITY LIBRARY (PACKAGE MANAGER): The `antiengine` plugin acts as a central package manager.
+   - **STRICT CONSTRAINT:** You are STRICTLY FORBIDDEN from using the `define_subagent` tool to create project agents, builders, or specialists. All specialists MUST be generated through the Antigravity Engine pipeline.
    - Before starting a new task, ALWAYS use the `search_library` MCP tool to find relevant resources (agents, rules, skills).
    - If a resource exists, use the `import_resource` MCP tool to copy it into your current project's `.agents/` folder. This dynamically loads the constraints and capabilities without polluting the global context.
-   - If a needed resource doesn't exist, use `invoke_subagent` to assign the `antiengine-builder` subagent to create it. Tell the subagent to use its `save_to_library` MCP tool to save the new resource into the global library, then you can import it.
+   - If a needed resource doesn't exist, use `invoke_subagent` with `TypeName: "antiengine-builder"` to assign the Antigravity Builder to create it. Tell the subagent to use its `save_to_library` MCP tool to save the new resource into the global library, then you can import it.
 10. ROADMAP EXECUTION & ORCHESTRATION: If `docs.llm/roadmap.md` exists, you are the Orchestrator. You MUST treat this file as your absolute task list. 
     - You must execute it sequentially. Do NOT skip steps or jump straight to coding.
     - For each step, identify the required specialist agent, `import_resource` them from the library, and `invoke_subagent` to delegate the task.
