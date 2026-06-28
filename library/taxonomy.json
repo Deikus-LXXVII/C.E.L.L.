@@ -13,5 +13,9 @@
   "swift": "Apple Swift programming language",
   "luci": "OpenWrt LuCI web interface",
   "javascript": "JavaScript and ES6+",
-  "skills": "Skills and tools"
+  "skills": "Skills and tools",
+  "audio": "Audio pipelines, STT, TTS, and routing.",
+  "mac": "MacOS and Apple Silicon specific features.",
+  "ai": "Artificial intelligence, MLX, and local models.",
+  "meta": "Rules about rules."
 }

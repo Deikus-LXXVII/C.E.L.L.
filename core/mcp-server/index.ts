@@ -444,8 +444,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 "file_map.md": "# File Map & Architecture\n> **INSTRUCTIONS FOR AI:**\n> **WHAT:** Structural map of the codebase.\n",
                 "guide.md": "# Current State & Developer Guide\n> **INSTRUCTIONS FOR AI:**\n> **WHAT:** Executable instruction manual for the project AS IT IS NOW.\n",
                 "memory_anchor.md": "# Memory Anchor\n> **INSTRUCTIONS FOR AI:**\n> **WHAT:** Primary source of truth for all hard facts, global constants, and technical constraints.\n",
-                "quirks.md": "# Quirks\nThis file documents project-specific anomalies, custom behaviors, and naming conventions discovered during development.\n",
-                "roadmap.md": `# Execution Roadmap
+                "quirks.md": "# Quirks\nThis file documents project-specific anomalies, custom behaviors, and naming conventions discovered during development.\n"
+            };
+            for (const [docName, docContent] of Object.entries(docs)) {
+                fs.writeFileSync(path.join(docsDir, docName), docContent, "utf-8");
+            }
+
+            // Create .agents/rules and inject bootstrap resources
+            fs.mkdirSync(agentsRulesDir, { recursive: true });
+            
+            // Generate Roadmap in rules for auto-context
+            const roadmapContent = `# Execution Roadmap
 > **INSTRUCTIONS FOR AI:**
 > **WHAT:** Sequential execution plan.
 
@@ -456,14 +465,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 - [ ] **4. Builder Execution:** \`antiengine-builder\` generates requested resources.
 - [ ] **5. Infrastructure Validation:** \`antiengine-qa\` validates environment and configurations.
 - [ ] **6. Execution:** Project development begins.
-`
-            };
-            for (const [docName, docContent] of Object.entries(docs)) {
-                fs.writeFileSync(path.join(docsDir, docName), docContent, "utf-8");
-            }
+`;
+            fs.writeFileSync(path.join(agentsRulesDir, "roadmap.md"), roadmapContent, "utf-8");
 
-            // Create .agents/rules and inject bootstrap resources
-            fs.mkdirSync(agentsRulesDir, { recursive: true });
+            // Generate initial settings
+            const settingsContent = `strictness_level: strict
+use_antigravity: true
+`;
+            fs.writeFileSync(path.join(agentsRulesDir, "settings.yaml"), settingsContent, "utf-8");
+
             if (fs.existsSync(bootstrapDir)) {
                 const bootstrapFiles = fs.readdirSync(bootstrapDir).filter(f => !f.startsWith("."));
                 for (const file of bootstrapFiles) {
