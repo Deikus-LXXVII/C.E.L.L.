@@ -1,14 +1,14 @@
 #!/bin/bash
-# Antigravity Engine - Claude Code Installer
+# C.E.L.L. (Claude's Evolving Logic Library) - Claude Code Installer
 #
-# Copies this repo's .claude/agents and .claude/commands into a target
-# Claude Code project (default) or into ~/.claude for global, cross-project
-# availability ("user" mode). No build step required — agents and commands
-# are plain markdown files.
+# Copies this repo's .claude/agents (cells) and .claude/commands into a
+# target Claude Code project (default) or into ~/.claude for global,
+# cross-project availability ("user" mode). No build step required — cells
+# and commands are plain markdown files.
 
 set -euo pipefail
 
-echo "Installing Antigravity Engine for Claude Code..."
+echo "Installing C.E.L.L. for Claude Code..."
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:-project}"   # project | user
@@ -34,8 +34,8 @@ else
 fi
 
 echo ""
-echo "Done. Agents and commands installed — no build step required."
+echo "Done. Cells and commands installed — no build step required."
 echo ""
-echo "Try it: open Claude Code in this project and run /ae-init"
+echo "Try it: open Claude Code in this project and run /cell-create"
 echo "Usage: ./install.sh          — install into the current project's .claude/"
-echo "       ./install.sh user     — install into ~/.claude/ for all projects"
+echo "       ./install.sh user     — install into ~/.claude/ for all projects (recommended)"
