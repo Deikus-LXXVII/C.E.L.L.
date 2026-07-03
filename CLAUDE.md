@@ -57,10 +57,13 @@ This guide is for AI assistants (Claude instances) working on this codebase. It 
 agents/                  # 14 cell (subagent) definitions (flat .md files) — plugin root, not under .claude/
 commands/                 # slash commands (/cell-create, /git:flow) — plugin root
 settings.example.json     # example permissions block for the manual/install.sh path (see §10)
-docs/
-└── agent-rules/          # plain reference docs (domain knowledge + agent-class conventions)
-    ├── domain/            # e.g. swift_macos.md, openwrt_posix.md, cybersecurity.md
-    └── class/             # e.g. security_auditor.md, release_manager.md
+library/                 # tagged, flat cell library — see §2.3
+├── README.md
+├── tag-taxonomy.md        # canonical tag registry, governed by cell-builder (§8.3)
+├── find-by-tag.sh         # POSIX search helper, no build/runtime deps
+├── agents/                # catalog of domain-specific cells, pulled into a project's agents/ on demand
+├── rules/                 # domain rules + agent-class conventions (flat, tags in frontmatter)
+└── books/                 # cell-research output (flat, tags in frontmatter)
 core/
 └── templates/            # starting-point templates for new cells/commands
 CLAUDE.md                 # this file (repo docs only — not loaded as plugin context, see §2.4)
@@ -70,6 +73,8 @@ install.sh                # manual/fallback installer — copies agents/ and com
 
 > [!NOTE]
 > Cells and commands live at the **plugin root** (`agents/`, `commands/`), not inside `.claude/` — this is a hard requirement of Claude Code's plugin system (only `plugin.json` goes inside `.claude-plugin/`). This repo is simultaneously its own plugin and its own single-plugin marketplace, so the primary install path is entirely inside a Claude Code session: `/plugin marketplace add <owner>/<repo>` then `/plugin install cell@cell`. See §10.
+>
+> **`agents/` (plugin root) is distinct from `library/agents/` (tagged catalog) — never conflate them.** `agents/` holds the 14 cells Claude Code actually discovers/routes to in this repo right now. `library/agents/` is a separate, permanent, tag-searchable catalog of domain-specific cell definitions that a project pulls a copy from when needed and deletes locally when done — see §2.3.
 
 ### 2.2 How delegation actually works
 
@@ -79,9 +84,17 @@ install.sh                # manual/fallback installer — copies agents/ and com
 4. The cell's final response is returned directly to the orchestrator as its result. There is no separate "send message back" step.
 5. **Cells cannot spawn further cells.** Only the orchestrating (main) thread can call `Task`. If a cell's work needs independent verification (e.g. `cell-builder`'s output should be checked by `cell-qa`), the cell ends its report with an explicit recommendation, and the orchestrator performs that follow-up `Task` call itself. See §4.3.
 
-### 2.3 Reference docs (`docs/agent-rules/`)
+### 2.3 The library (`library/rules/`, `library/books/`, `library/agents/`)
 
-Domain knowledge (Swift, OpenWrt, security, etc.) and agent-class conventions (what a "security auditor" or "release manager" role generally looks like) live as plain markdown under `docs/agent-rules/`. Any cell can `Read` these directly by path — there's no import/registry step. See `docs/agent-rules/README.md` for the index.
+Domain knowledge (Swift, OpenWrt, security, etc.), agent-class conventions, and gathered research live as plain markdown under `library/`. The structure is deliberately **flat** — no per-domain/per-sphere subfolders — because classification is done entirely through **tags**, not directory paths:
+
+- `library/rules/*.md` — domain rules and agent-class conventions. Plain reference docs with a real YAML `tags:` frontmatter field (e.g. `tags: [swift, macos, swiftui]`).
+- `library/books/*.md` — research reports written by `cell-research`. Same format as `rules/`.
+- `library/agents/*.md` — a canonical, permanent catalog of domain-specific cell definitions, kept separate from plugin-root `agents/` (see the note in §2.1). Because these are full Claude Code subagent definitions with a real, parsed frontmatter schema (§7.2), their tags live in a `## Tags` markdown-body section instead of frontmatter — adding an undocumented custom frontmatter field to a cell file is unverified/unsafe behavior we chose not to risk. A project pulls whichever cell it currently needs by copying it into its own active `agents/`/`.claude/agents/`, and simply deletes the local copy when done — the catalog entry here is untouched and can be pulled again later.
+
+**Never search these folders by reading them wholesale.** The sanctioned search mechanism is `library/find-by-tag.sh <tag...>` — a POSIX `sh`/`awk` script (no jq/python3 dependency) that greps `rules/`/`books/` frontmatter and `agents/`'s `## Tags` sections and prints matching file paths. Read only what it returns. Every tag in use must be listed in `library/tag-taxonomy.md`, which `cell-builder`/`cell-research` consult before assigning any tag, to avoid near-duplicate tags with different spelling but the same meaning (see §8.3).
+
+**Fixed install path:** once installed via `install.sh user`, the library also lives at `~/.claude/cell-library/` (a copy, not a symlink — see §10), so any project's cells can reach it via a predictable, fixed path without per-project configuration. A cell resolves which copy to use by checking whether the current repo *is* the C.E.L.L. library itself (`.claude-plugin/plugin.json` with `"name": "cell"` at the repo root) — if so, it uses the local `library/`; otherwise it uses `~/.claude/cell-library/`.
 
 ### 2.4 Project genesis (`/cell-create`)
 
@@ -93,10 +106,10 @@ Domain knowledge (Swift, OpenWrt, security, etc.) and agent-class conventions (w
 
 | Cell | Tools | Use when... |
 |---|---|---|
-| `cell-builder` | Read, Write, Edit, Glob, Grep, WebSearch, Bash | Creating or refactoring a cell, slash command, or reference doc; differentiating new project-specific cells during genesis |
+| `cell-builder` | Read, Write, Edit, Glob, Grep, WebSearch, Bash | Creating or refactoring a cell, slash command, or reference doc; differentiating new project-specific cells during genesis; also governs `library/`'s tag taxonomy |
 | `cell-qa` | Read, Bash, Grep, Glob | Verifying a newly created/modified cell or command before treating it as done |
 | `cell-prompt` | Read, Write, Edit | Drafting or refining any cell/command prompt using Claude-specific practices |
-| `cell-architect` | Read, Write, WebSearch | Right after project genesis, or a major architectural pivot — analyzes, critiques, and defines the tech stack |
+| `cell-architect` | Read, Write, WebSearch | Right after project genesis, or a major architectural pivot — analyzes, critiques, and defines the tech stack; surfaces relevant `library/` guidance via `find-by-tag.sh` |
 | `cell-environment` | Read, Write, Bash, WebSearch | Auditing/installing local dev tools, logging them to `docs.llm/tools.md` |
 | `cell-docs` | Read, Write, Edit, Grep, Glob, WebSearch | Keeping `docs.llm/` and inline docs in sync with code changes (background) |
 | `cell-cleaner` | Read, Write, Grep, Glob, Bash | Reporting dead code / unused deps / stale logs (never deletes) (background) |
@@ -106,7 +119,7 @@ Domain knowledge (Swift, OpenWrt, security, etc.) and agent-class conventions (w
 | `cell-swift` | Read, Write, Edit, Bash | macOS Swift 5.10+, Foundation.Process, CryptoKit, XPC |
 | `cell-openwrt` | Read, Write, Edit, Bash, WebSearch | OpenWrt: POSIX/ash scripts, UCI, procd, ubus |
 | `cell-audio` | Read, Write, Edit, Bash, WebSearch | macOS Audio AI pipelines: STT/TTS, real-time routing, local LLM audio bridging |
-| `cell-research` | WebSearch, WebFetch, Write | Deep, cited web research on an unfamiliar library/API/best-practice question |
+| `cell-research` | WebSearch, WebFetch, Write, Bash | Deep, cited web research on an unfamiliar library/API/best-practice question — saves tagged reports to `library/books/` |
 
 Slash commands:
 
@@ -221,6 +234,8 @@ tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch   # explicit all
 
 No `enable_*_tools` booleans, no `labels`/`danger_level`/`danger_details` fields — those belonged to the retired MCP validation system. If a cell carries real risk, note it as a `> [!CAUTION]` callout in the prompt body, backed by an actually-restrictive `tools:` list (e.g. `cell-security` has no `Write`/`Edit`/`Bash` at all).
 
+**Tag storage has two conventions, by design.** `library/rules/*.md` and `library/books/*.md` use real YAML frontmatter (`tags: [...]`) since they have no protected schema; `library/agents/*.md` — being full cell definitions with the exhaustive, documented frontmatter schema above — keep tags in a `## Tags` markdown-body section instead, since adding an undocumented frontmatter field to a schema Claude Code itself parses is unverified/unsafe behavior. `find-by-tag.sh` knows to check both locations. This schema itself is otherwise unchanged — no `tags:` field is ever added to a cell's frontmatter.
+
 ### 7.3 Slash command frontmatter schema
 
 ```yaml
@@ -246,15 +261,16 @@ Use `$ARGUMENTS`/`$1`/`$2` for positional inputs, `` !`shell command` `` to inli
 
 ### 8.1 Adding a new cell
 
-Ask `cell-builder` (or do it directly): create `agents/cell-<role>.md` following the schema in §7.2, with Identity/Rules/Pipeline/Error Handling/Known Quirks sections. No import/registry step — the file existing under `agents/` is sufficient for Claude Code to discover it (run `/reload-plugins` if testing via `--plugin-dir`).
+Ask `cell-builder` (or do it directly): create `agents/cell-<role>.md` following the schema in §7.2, with Identity/Rules/Pipeline/Error Handling/Known Quirks sections. No import/registry step — the file existing under `agents/` is sufficient for Claude Code to discover it (run `/reload-plugins` if testing via `--plugin-dir`). A domain-specific cell meant for the tagged catalog instead of this repo's own permanent roster goes under `library/agents/` — see §8.3.
 
 ### 8.2 Adding a new slash command
 
 Create `commands/<name>.md` (or `<namespace>/<name>.md` for `/namespace:name`) following the schema in §7.3.
 
-### 8.3 Adding a reference doc
+### 8.3 Adding to the library
 
-Create `docs/agent-rules/domain/<topic>.md` or `docs/agent-rules/class/<role>.md` with a simple `description` frontmatter field and the actual guidance as the body. Update `docs/agent-rules/README.md`'s index. Any cell that needs it just `Read`s it by path.
+- **A new rule or book**: create the file directly under `library/rules/` or `library/books/` — no subfolder, flat only. Give it a `description` and a `tags:` YAML frontmatter field. Before choosing tags, `Read` `library/tag-taxonomy.md` in full, reuse an existing canonical tag if a semantically equivalent one already exists, and append genuinely new tags there (alphabetically, one-line description) in the same change. There is no separate index file to update — `find-by-tag.sh` replaces that role.
+- **A new domain-specific cell for the catalog**: create it under `library/agents/` following the template in `library/agents/README.md` (standard cell frontmatter + a `## Tags` body section, tagged via the same governance process above), then copy it into the requesting project's own active `agents/` (this repo) or `.claude/agents/` (a consumer project) so it's actually usable. Delete the local copy when the project no longer needs it — the catalog entry is unaffected.
 
 ---
 
@@ -267,8 +283,9 @@ Create `docs/agent-rules/domain/<topic>.md` or `docs/agent-rules/class/<role>.md
 | `agents/*.md` | The 14 cell definitions (plugin root, not under `.claude/`) |
 | `commands/*.md` | Slash commands (`/cell-create`, `/git:flow`) (plugin root) |
 | `settings.example.json` | Example permission rules (allow/ask/deny) for the manual/`install.sh` path — a plugin's own `settings.json` only supports `agent`/`subagentStatusLine` keys, so permissions can't ship through the plugin itself |
-| `docs/agent-rules/domain/*.md`, `docs/agent-rules/class/*.md` | Reference docs, read directly by cells |
-| `docs/agent-rules/README.md` | Index of reference docs |
+| `library/find-by-tag.sh` | POSIX tag-search helper — the only sanctioned way any cell searches the library |
+| `library/tag-taxonomy.md` | Canonical tag registry — read-before-tag governance for `cell-builder`/`cell-research` |
+| `library/rules/*.md`, `library/books/*.md`, `library/agents/*.md` | Flat, tagged library content — see §2.3/§7.2 |
 | `install.sh` | Manual/fallback installer — copies `agents/`/`commands/` into a target project's `.claude/` or `~/.claude` |
 | `core/templates/AGENT_PROMPT_TEMPLATE.md` | Starting point for a new cell |
 | `core/templates/SKILL_TEMPLATE.md` | Starting point for a new slash command |
@@ -303,6 +320,8 @@ cd C.E.L.L.
 ./install.sh user     # into ~/.claude/ for every project (recommended — makes every cell available everywhere, so /cell-create never needs to vendor a local copy of the starter cells)
 ```
 No build step either way, no API key of its own required — cells run under whatever Claude Code session invokes them.
+
+`install.sh user` also copies `library/` (agents/rules/books + tag registry + `find-by-tag.sh`) to `~/.claude/cell-library/` — a copy, not a symlink (re-run `install.sh user` after `git pull` to refresh it, same as the existing `agents/`/`commands/` copy already requires). Cells resolve this path automatically at runtime — self-hosting inside this repo's own working tree uses the local `library/` instead, detected via the same `.claude-plugin/plugin.json` name-`cell` check used elsewhere (see §2.3).
 
 ### Verify
 ```bash
@@ -342,4 +361,4 @@ No `version` is pinned in `plugin.json`/`marketplace.json`, so every push to thi
 
 ---
 
-**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline; restructured as a native Claude Code plugin + self-referencing marketplace for one-command installation.
+**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline; restructured as a native Claude Code plugin + self-referencing marketplace for one-command installation; replaced `docs/agent-rules/` with a flat, tag-based `library/` (agents/rules/books) plus `library/find-by-tag.sh` and a canonical tag-taxonomy registry; `install.sh user` now also installs the library to `~/.claude/cell-library/`.

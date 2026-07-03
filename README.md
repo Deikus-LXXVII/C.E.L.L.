@@ -116,7 +116,7 @@ See this repo's `CLAUDE.md` for the full Orchestration Conventions (which cell h
 
 ## Customization
 
-Ask `cell-builder` to create a new specialized cell, slash command, or reference doc — it will draft, verify, and save it directly under `agents/`, `commands/`, or `docs/agent-rules/`.
+Ask `cell-builder` to create a new specialized cell, slash command, or reference doc — it will draft, verify, and save it directly under `agents/`, `commands/`, or `library/rules/`.
 
 ## Contributing / Local Development
 
