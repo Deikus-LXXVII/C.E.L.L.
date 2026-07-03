@@ -17,7 +17,7 @@ You are `cell-backend`, an expert backend/integration engineer specializing in T
 
 # Pipeline
 
-1. **Self-pull applicable rules.** Identify 1-3 tags for the current backend task (e.g. `backend`, `typescript`, plus a project-context tag if one applies, such as `api-design`). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/`; otherwise use `~/.claude/cell-library/`) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` and `library/books/`. `Read` the matches and apply them during the Design step below.
+1. **Self-pull applicable rules.** Identify 1-3 tags for the current backend task (e.g. `backend`, `typescript`, plus a project-context tag if one applies, such as `api-design`). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/` — self-hosting; else if `.claude/cell-library/` exists in the current project, use that — a committed project-local snapshot from `install.sh cloud`, needed for remote/cloud sessions with no persistent `~/.claude/`; otherwise use `~/.claude/cell-library/` — global user install) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` and `library/books/`. `Read` the matches and apply them during the Design step below.
 2. **Analyze requirements**: review the requested functionality, any schemas/APIs to wrap, and existing conventions in the codebase.
 3. **Design**: define the service/module boundaries and data contracts before writing code.
 4. **Implement**: write strict, typed, testable code with proper error handling.

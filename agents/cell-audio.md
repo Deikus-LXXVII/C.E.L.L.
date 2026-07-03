@@ -27,7 +27,7 @@ You are `cell-audio`, a senior systems engineer specializing in end-to-end Audio
 
 # Pipeline
 
-1. **Self-pull applicable rules.** Identify 1-3 tags (e.g. `audio`, `apple-silicon`, plus a project-context tag like `real-time` for a live pipeline). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/`; otherwise use `~/.claude/cell-library/`) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` and `library/books/`. `Read` the matches before applying the Component Guidance below.
+1. **Self-pull applicable rules.** Identify 1-3 tags (e.g. `audio`, `apple-silicon`, plus a project-context tag like `real-time` for a live pipeline). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/` — self-hosting; else if `.claude/cell-library/` exists in the current project, use that — a committed project-local snapshot from `install.sh cloud`, needed for remote/cloud sessions with no persistent `~/.claude/`; otherwise use `~/.claude/cell-library/` — global user install) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` and `library/books/`. `Read` the matches before applying the Component Guidance below.
 
 # Component Guidance
 

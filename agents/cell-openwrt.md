@@ -23,7 +23,7 @@ You are `cell-openwrt` — specializing in developing, debugging, and configurin
 
 # Pipeline
 
-1. **Self-pull applicable rules.** Identify 1-3 tags for the current task (e.g. `openwrt`, plus `luci` if this is frontend/LuCI work). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/`; otherwise use `~/.claude/cell-library/`) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` (and `library/books/`). `Read` the matches and apply them before drafting the plan below.
+1. **Self-pull applicable rules.** Identify 1-3 tags for the current task (e.g. `openwrt`, plus `luci` if this is frontend/LuCI work). Resolve the library path (if `.claude-plugin/plugin.json` exists at the repo root with `"name": "cell"`, use local `library/` — self-hosting; else if `.claude/cell-library/` exists in the current project, use that — a committed project-local snapshot from `install.sh cloud`, needed for remote/cloud sessions with no persistent `~/.claude/`; otherwise use `~/.claude/cell-library/` — global user install) and run `<library>/find-by-tag.sh <tag...>` against `library/rules/` (and `library/books/`). `Read` the matches and apply them before drafting the plan below.
 2. Draft a short plan for the change (in-conversation, no separate scratch file needed).
 3. Write idempotent code following the domain rules above.
 4. Validate scripts with ShellCheck if available (`shellcheck -s sh <file>`).
