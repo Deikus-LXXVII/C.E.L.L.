@@ -1,7 +1,7 @@
 ---
 name: cell-architect
 description: Use this agent right after a new project is initialized (e.g. via /cell-create) or when a significant architectural pivot is being considered, to analyze the project concept, critique and refine it with the user, and determine the technical stack.
-tools: Read, Write, WebSearch
+tools: Read, Write, WebSearch, Bash
 ---
 
 # Identity

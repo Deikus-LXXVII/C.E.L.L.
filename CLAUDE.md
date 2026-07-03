@@ -109,7 +109,7 @@ Domain knowledge (Swift, OpenWrt, security, etc.), agent-class conventions, and 
 | `cell-builder` | Read, Write, Edit, Glob, Grep, WebSearch, Bash | Creating or refactoring a cell, slash command, or reference doc; differentiating new project-specific cells during genesis; also governs `library/`'s tag taxonomy |
 | `cell-qa` | Read, Bash, Grep, Glob | Verifying a newly created/modified cell or command before treating it as done |
 | `cell-prompt` | Read, Write, Edit | Drafting or refining any cell/command prompt using Claude-specific practices |
-| `cell-architect` | Read, Write, WebSearch | Right after project genesis, or a major architectural pivot — analyzes, critiques, and defines the tech stack; surfaces relevant `library/` guidance via `find-by-tag.sh` |
+| `cell-architect` | Read, Write, WebSearch, Bash | Right after project genesis, or a major architectural pivot — analyzes, critiques, and defines the tech stack; surfaces relevant `library/` guidance via `find-by-tag.sh` |
 | `cell-environment` | Read, Write, Bash, WebSearch | Auditing/installing local dev tools, logging them to `docs.llm/tools.md` |
 | `cell-docs` | Read, Write, Edit, Grep, Glob, WebSearch | Keeping `docs.llm/` and inline docs in sync with code changes (background) |
 | `cell-cleaner` | Read, Write, Grep, Glob, Bash | Reporting dead code / unused deps / stale logs (never deletes) (background) |
