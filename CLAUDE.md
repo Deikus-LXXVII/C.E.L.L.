@@ -96,10 +96,12 @@ Domain knowledge (Swift, OpenWrt, security, etc.), agent-class conventions, and 
 
 **Fixed install path:** once installed via `install.sh user`, the library also lives at `~/.claude/cell-library/` (a copy, not a symlink — see §10), so any project's cells can reach it via a predictable, fixed path without per-project configuration. A cell resolves which copy to use in this order:
 1. **Self-hosting** — the current repo *is* the C.E.L.L. library itself (`.claude-plugin/plugin.json` with `"name": "cell"` at the repo root) → use the local `library/`.
-2. **Project-local snapshot** — `.claude/cell-library/` exists in the current project (created by `install.sh cloud`, committed to that project's own git repo) → use that.
-3. **Global user install** — otherwise use `~/.claude/cell-library/` (from `install.sh user`).
+2. **Project-local copy** — `.claude/cell-library/` exists in the current project → use that. It comes in two forms at the same path, distinguished by whether it's a symlink:
+   - **Live sync clone** (`install.sh sync`) — `.claude/cell-library` is a symlink into `.claude/cell-library-src/library/`, a sparse git clone pointed at this repo's own GitHub remote. Before first use in an invocation, run a best-effort `git -C .claude/cell-library-src pull --ff-only` and ignore failures (offline-safe). This clone (and the symlink) are `.gitignore`d in the consumer project's own repo — it's a live mirror, not something meant to be committed there.
+   - **Frozen snapshot** (`install.sh cloud`) — a plain directory copy, not a symlink, committed to the consumer project's own git history so it survives a remote/cloud session with no network guarantee. No pull, use as-is.
+3. **Global user install** — otherwise use `~/.claude/cell-library/` (from `install.sh user`, always a plain copy, never pulled).
 
-Tier 2 exists specifically for remote/cloud Claude Code sessions, which clone a project onto a fresh, ephemeral machine with no persistent `~/.claude/` — see §10.
+Tier 2 exists to serve two different environments with the same fixed path: `install.sh cloud`'s frozen snapshot for genuinely network-less remote/cloud sessions with no persistent `~/.claude/` and no reliable network, and `install.sh sync`'s live clone for environments that DO have network access but still want a fast, project-local, auto-refreshing copy rather than depending on `~/.claude/cell-library/`. New library content authored against a `sync`-mode clone isn't pushed automatically — `cell-builder`/`cell-research` recommend the orchestrator invoke `cell-git` to commit and push it back to the canonical repo (see §10).
 
 ### 2.4 Project genesis (`/cell-create`)
 
@@ -119,7 +121,7 @@ Tier 2 exists specifically for remote/cloud Claude Code sessions, which clone a 
 | `cell-docs` | Read, Write, Edit, Grep, Glob, WebSearch | Keeping `docs.llm/` and inline docs in sync with code changes (background) |
 | `cell-cleaner` | Read, Write, Grep, Glob, Bash | Reporting dead code / unused deps / stale logs (never deletes) (background) |
 | `cell-security` | Read, Grep, Glob, WebSearch | Auditing for OWASP Top 10 issues, insecure deps, hardcoded secrets — **read-only** (background) |
-| `cell-git` | Bash, Read | Repo init, GitHub repo creation, remotes, initial push (beyond routine commits) |
+| `cell-git` | Bash, Read | Repo init, GitHub repo creation, remotes, initial push (beyond routine commits); committing/pushing newly authored `library/` content back to the canonical C.E.L.L. repo |
 | `cell-backend` | Read, Write, Edit, Bash, Grep, Glob | TypeScript/backend services, API design, tool/server implementations |
 | `cell-swift` | Read, Write, Edit, Bash | macOS Swift 5.10+, Foundation.Process, CryptoKit, XPC |
 | `cell-openwrt` | Read, Write, Edit, Bash, WebSearch | OpenWrt: POSIX/ash scripts, UCI, procd, ubus |
@@ -334,6 +336,18 @@ No build step either way, no API key of its own required — cells run under wha
 ```
 Neither the plugin/marketplace path nor `install.sh user`'s global `~/.claude/cell-library/` survives a remote/cloud Claude Code session, which clones a project onto a fresh, ephemeral machine with no persistent `~/.claude/` and (depending on client) no guaranteed `/plugin` command support. `install.sh cloud` instead copies `agents/`/`commands/`/`library/` directly into the **target project's own** `.claude/` — `.claude/cell-library/` becomes a committable, frozen snapshot that travels with that project's own git history, so any environment that clones it (local, VSCode extension, or cloud) has everything natively, no plugin system or global path required. Tradeoff: that project no longer shares newly-generated library resources (new tags, new research books, new catalog cells) with other projects on the same machine — re-run `./install.sh cloud` to refresh the snapshot when you want the latest library content.
 
+### Install for a live, auto-refreshing project-local library
+```bash
+./install.sh sync    # run FROM this repo, INTO the target project's own directory
+```
+Unlike `install.sh cloud`'s frozen, committed snapshot, `sync` mode creates a **live git working tree** — a sparse, shallow clone of just this repo's `library/` subtree at `.claude/cell-library-src/`, pointed directly at the canonical C.E.L.L. GitHub remote (this repo is public, so no authentication is needed to clone/pull it). `.claude/cell-library` is a symlink into `.claude/cell-library-src/library/`, so cells resolve the same fixed path (`.claude/cell-library/`) regardless of whether a project uses `cloud` or `sync` mode — only the *nature* of what's at that path differs (see §2.3). `install.sh sync` also appends `.claude/cell-library-src/` and `.claude/cell-library` to the target project's own `.gitignore` (creating it if needed, idempotently) — this clone is NOT meant to be committed to the consumer project's own history, since it continuously tracks the C.E.L.L. repo's own remote independently.
+
+Cells refresh it automatically: any cell that resolves the library path to this symlink runs a best-effort `git -C .claude/cell-library-src pull --ff-only` once per invocation before its first `find-by-tag.sh` call, swallowing failures so an offline session degrades gracefully to whatever's already cloned.
+
+New library content authored against a `sync`-mode clone is **not** automatically pushed — per §4.3's recommend-don't-do pattern, `cell-builder`/`cell-research` end their report recommending the orchestrator invoke `cell-git` to commit and push it back to the canonical repo. `cell-git` always operates with `git -C .claude/cell-library-src ...`, pulling first to reduce conflict likelihood, and on a rejected push does one `pull --rebase` + retry before reporting an unresolved conflict rather than force-pushing (see `cell-git.md`).
+
+Choose `sync` over `cloud` when the target environment has network access and you want the library to auto-stay-current without re-running `install.sh cloud` by hand; choose `cloud` when the environment is genuinely network-less/ephemeral and needs a frozen, committed copy.
+
 ### Verify
 ```bash
 claude plugin list                     # confirm the plugin-based install landed
@@ -372,4 +386,4 @@ No `version` is pinned in `plugin.json`/`marketplace.json`, so every push to thi
 
 ---
 
-**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline; restructured as a native Claude Code plugin + self-referencing marketplace for one-command installation; replaced `docs/agent-rules/` with a flat, tag-based `library/` (agents/rules/books) plus `library/find-by-tag.sh` and a canonical tag-taxonomy registry; `install.sh user` now also installs the library to `~/.claude/cell-library/`; added `install.sh cloud` for a project-committed library snapshot that survives remote/cloud sessions with no persistent `~/.claude/`.
+**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline; restructured as a native Claude Code plugin + self-referencing marketplace for one-command installation; replaced `docs/agent-rules/` with a flat, tag-based `library/` (agents/rules/books) plus `library/find-by-tag.sh` and a canonical tag-taxonomy registry; `install.sh user` now also installs the library to `~/.claude/cell-library/`; added `install.sh cloud` for a project-committed library snapshot that survives remote/cloud sessions with no persistent `~/.claude/`; added `install.sh sync` for a live, auto-refreshing project-local `library/` clone (sparse git clone of the canonical repo, symlinked into `.claude/cell-library`, `.gitignore`d in the consumer project, refreshed via best-effort `git pull` by any cell before first library use each invocation) as an alternative to `cloud`'s frozen snapshot, with `cell-git` now responsible for committing/pushing new library content back to the canonical repo on request.
