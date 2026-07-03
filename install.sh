@@ -30,6 +30,14 @@ mkdir -p "$DEST/agents" "$DEST/commands"
 cp -R "$REPO_DIR/agents/." "$DEST/agents/"
 cp -R "$REPO_DIR/commands/." "$DEST/commands/"
 
+if [ "$MODE" = "user" ]; then
+    LIBRARY_DEST="$HOME/.claude/cell-library"
+    echo "Installing C.E.L.L. library (tagged rules/agents/books) to $LIBRARY_DEST"
+    mkdir -p "$LIBRARY_DEST/agents" "$LIBRARY_DEST/rules" "$LIBRARY_DEST/books"
+    cp -R "$REPO_DIR/library/." "$LIBRARY_DEST/"
+    chmod +x "$LIBRARY_DEST/find-by-tag.sh"
+fi
+
 if [ ! -f "$DEST/settings.json" ]; then
     cp "$REPO_DIR/settings.example.json" "$DEST/settings.json"
     echo "Installed default $DEST/settings.json (permissions for common git/script operations)."
@@ -40,6 +48,11 @@ fi
 
 echo ""
 echo "Done. Cells and commands installed — no build step required."
+if [ "$MODE" = "user" ]; then
+    echo "Library (tagged rules/agents/books) installed to $HOME/.claude/cell-library/"
+    echo "NOTE: this is a copy, not a symlink — re-run './install.sh user' after 'git pull'"
+    echo "      on this repo to refresh it."
+fi
 echo ""
 echo "Try it: open Claude Code in this project and run /cell-create"
 echo "Usage: ./install.sh          — install into the current project's .claude/"
