@@ -1,44 +1,129 @@
-# Antigravity Engine 🚀
+# C.E.L.L. — Claude's Evolving Logic Library
 
-The ultimate orchestration engine and library of specialized agents for the Gemini ecosystem. 
+An orchestration engine and library of specialized subagents — **cells** — for **Claude Code**.
 
-Antigravity Engine upgrades the main agent from a solo coder to an **Orchestrator**. It introduces a strict cognitive pipeline, a robust background execution architecture, and a rich library of specialist subagents to automate project architecture, environment setup, documentation, security analysis, and Git workflows.
+C.E.L.L. upgrades the main agent from a solo coder into an **Orchestrator**. Like a biological cell, a new project starts from a small set of general-purpose "stem cells" and then **differentiates**: specialized cells, rules, and documentation are created for exactly what that project needs. Delegation is enforced structurally by Claude Code's own `Task` tool and permission system, not by prose convention alone.
 
 ## Installation
 
-Because this repository is private, you can install the engine with a single console command:
+C.E.L.L. ships as a native Claude Code plugin — no cloning, no build step. Inside a Claude Code session:
 
-```bash
-git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git ~/.gemini/config/plugins/antiengine && cd ~/.gemini/config/plugins/antiengine && ./install.sh
+```
+/plugin marketplace add Deikus-LXXVII/C.E.L.L.
+/plugin install cell@cell
 ```
 
-## How to use: The Starter Pack
-1. Create a brand new, empty folder for your project.
-2. Open it in your IDE.
-3. Open chat and type: `/ae-init I want to build a [your project idea]`
+Or, as a single shell command (equivalent, non-interactive):
 
-**What happens next?**
-The engine will instantly inject its rules into your project, spin up the **Architect Agent** (`project-architect`) in the background to analyze your idea, and map out the tech stack.
+```bash
+claude plugin marketplace add Deikus-LXXVII/C.E.L.L. && claude plugin install cell@cell
+```
 
-## The 6-Step Cognitive Pipeline
-Whenever `/ae-init` is run, Antigravity Engine enforces a strict 6-step project initialization pipeline:
-1. **Architect Analysis:** `project-architect` analyzes the idea and determines the tech stack.
-2. **Environment Setup:** `environment-setup` checks your local tools (node, python, docker, etc.) and installs what's missing.
-3. **Infrastructure Planning:** The engine generates the initial directory structure and roadmap.
-4. **Builder Execution:** `antiengine-builder` handles writing all necessary infrastructure code.
-5. **QA Validation:** Tests are run against the initial setup to ensure stability.
-6. **Execution Phase:** Actual product features begin development.
+That's it — all 14 cells and both slash commands are now available in every project.
 
-## The Antigravity Specialists
+## Updating
 
-Your local engine library includes these pre-built specialists ready to be assigned tasks:
-- 🧠 **`project-architect`**: Conducts user interviews, analyzes tradeoffs, and dynamically loads language/framework rules.
-- 🛠️ **`environment-setup`**: A DevOps engineer that audits and configures the user's terminal environment.
-- 🧹 **`project-cleaner`**: A workspace Janitor that searches for dead code, unused dependencies, and obsolete logs.
-- 📖 **`doc-writer`**: Keeps your codebase and `docs.llm/guide.md` perfectly in sync.
-- 🛡️ **`security-analyst`**: A zero-trust security auditor that checks for OWASP Top 10 vulnerabilities and hardcoded secrets.
-- 🚀 **`git-master`**: Handles publishing the project to GitHub.
-- 🔄 **`skill: git-flow-automator`**: A standard skill for parsing `git diff` and generating perfect semantic commit messages.
+Since C.E.L.L. doesn't pin a `version` in its manifest, **every push to this repo is immediately available as a new version** — nothing needs to be tagged or released for an update to be pickable up.
 
-## Customization & Builders
-If you need an agent that doesn't exist, simply ask the engine. The engine will automatically deploy an `antiengine-builder` subagent to write, validate, and securely compile the new agent into your global library!
+**Automatic (recommended, one-time setup):** third-party marketplaces have auto-update off by default in Claude Code. Turn it on once and updates apply automatically at every session start:
+1. Run `/plugin`
+2. Go to **Marketplaces** → select **cell**
+3. Choose **Enable auto-update**
+
+From then on, Claude Code refreshes the marketplace and updates the plugin at startup, and notifies you to run `/reload-plugins` when something changed.
+
+**Manual, anytime:**
+```
+/plugin marketplace update cell
+/plugin update cell@cell
+/reload-plugins
+```
+Or non-interactively:
+```bash
+claude plugin marketplace update cell && claude plugin update cell@cell
+```
+
+**For teams**, an admin can force auto-update on for everyone without each person toggling it, by adding this to the project's `.claude/settings.json`:
+```json
+{
+  "extraKnownMarketplaces": {
+    "cell": {
+      "source": { "source": "github", "repo": "Deikus-LXXVII/C.E.L.L." },
+      "autoUpdate": true
+    }
+  }
+}
+```
+
+<details>
+<summary>Alternative: manual install (no plugin marketplace)</summary>
+
+For environments where plugin marketplaces are restricted, or for local development:
+
+```bash
+git clone https://github.com/Deikus-LXXVII/C.E.L.L..git
+cd C.E.L.L.
+./install.sh            # installs into the current project's .claude/
+# or:
+./install.sh user        # installs into ~/.claude/ for every project (recommended)
+```
+
+No build step is required either way — cells and commands are plain markdown files.
+
+**Updating this path**: there's no auto-update for a manually-installed copy. Pull the latest changes and re-run `install.sh` to refresh the installed files:
+```bash
+git pull
+./install.sh user   # or ./install.sh, matching however you installed originally
+```
+</details>
+
+## How to use: Genesis
+
+1. Install C.E.L.L. (above) — the plugin path makes every cell available in every project immediately, so new projects never need their own vendored copy of the starter cells.
+2. Create a new project folder (or `cd` into an existing one) and open Claude Code.
+3. Type: `/cell-create I want to build a [your project idea]`
+
+**What happens next?** `/cell-create` scaffolds `docs.llm/` context files and a `.gitignore`, seeds the three starter cells if they aren't already globally available, and kicks off the **Genesis Pipeline**: `cell-architect` analyzes and critiques your idea via the `Task` tool.
+
+## The Genesis Pipeline
+
+`/cell-create` tracks a 5-stage roadmap in `docs.llm/roadmap.md`:
+1. **Concept Analysis & Critique:** `cell-architect` analyzes the idea, critiques it, refines it with you, and locks the tech stack.
+2. **Environment Setup:** `cell-environment` checks local tools (node, python, docker, etc.) and installs what's missing.
+3. **Cell Differentiation:** `cell-builder` creates the project-specific cells, rules, and docs this project actually needs — the literal "cell division" step.
+4. **Validation:** `cell-qa` validates the new project-specific setup.
+5. **Execution:** development begins, delegated mostly to specialized cells so the orchestrator's own context window stays free for coordination.
+
+See this repo's `CLAUDE.md` for the full Orchestration Conventions (which cell handles which kind of request) and the complete cell reference table.
+
+## The Starter Cells
+
+- **`cell-architect`** — conducts user interviews, critiques and refines the concept, defines the tech stack.
+- **`cell-environment`** — DevOps engineer that audits and configures the local environment.
+- **`cell-builder`** — differentiates new project-specific cells, commands, and reference docs.
+
+## The Rest of the Library
+
+- **`cell-cleaner`** — workspace janitor: finds dead code, unused dependencies, obsolete logs (reports only, never deletes).
+- **`cell-docs`** — keeps `docs.llm/` and inline documentation in sync with the code.
+- **`cell-security`** — read-only OWASP Top 10 / hardcoded-secret auditor.
+- **`cell-git`** — repository/release management (GitHub repo creation, remotes, initial pushes).
+- **`cell-qa`** — validates new/modified cells and commands before they're treated as done.
+- **`cell-prompt`** — drafts/refines cell and command prompts using Claude-specific prompt engineering.
+- **`cell-backend`**, **`cell-swift`**, **`cell-openwrt`**, **`cell-audio`** — domain specialists for backend/TypeScript, macOS Swift, OpenWrt embedded Linux, and macOS audio AI pipelines respectively.
+- **`cell-research`** — deep web research and documentation synthesis.
+- **`/git:flow`** (slash command) — analyzes `git diff`, proposes Conventional Commit messages, manages branches.
+
+## Customization
+
+Ask `cell-builder` to create a new specialized cell, slash command, or reference doc — it will draft, verify, and save it directly under `agents/`, `commands/`, or `docs/agent-rules/`.
+
+## Contributing / Local Development
+
+This repo is both the plugin and its own marketplace (`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, self-referencing via `"source": "./"`). To test changes locally without publishing:
+
+```bash
+claude --plugin-dir /path/to/this/repo
+```
+
+See this repo's `CLAUDE.md` for the full architecture, agent reference table, and orchestration conventions.

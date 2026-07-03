@@ -1,26 +1,48 @@
 #!/bin/bash
-# Antigravity Engine - Local Installer
+# C.E.L.L. (Claude's Evolving Logic Library) - Manual Installer (fallback)
+#
+# The recommended way to install C.E.L.L. is Claude Code's native plugin
+# system — see README.md for the one-line install. This script is a manual
+# fallback for environments where plugin marketplaces are restricted (e.g.
+# managed/locked-down settings), or for local development/testing.
+#
+# Copies this repo's agents/ (cells) and commands/ into a target Claude Code
+# project's .claude/ directory (default) or into ~/.claude/ for global,
+# cross-project availability ("user" mode). No build step required — cells
+# and commands are plain markdown files.
 
-set -e
+set -euo pipefail
 
-echo "🚀 Installing Antigravity Engine..."
+echo "Installing C.E.L.L. for Claude Code (manual/fallback method)..."
 
-DEST="$HOME/.gemini/config/plugins/antiengine"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODE="${1:-project}"   # project | user
 
-# Check if we are running this script from the destination directory
-if [ "$PWD" != "$DEST" ]; then
-    echo "⚠️  It looks like you haven't cloned the repository to the correct location."
-    echo "Please clone the repo directly to the plugin directory using:"
-    echo "git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git $DEST"
-    echo "And then run this script from there."
-    exit 1
+if [ "$MODE" = "user" ]; then
+    DEST="$HOME/.claude"
+    echo "Installing globally to $DEST (available in every project)"
+else
+    DEST="$(pwd)/.claude"
+    echo "Installing to current project: $DEST"
 fi
 
-echo "📦 Building MCP Server..."
-cd core/mcp-server
-npm install
-npm run build
+mkdir -p "$DEST/agents" "$DEST/commands"
+cp -R "$REPO_DIR/agents/." "$DEST/agents/"
+cp -R "$REPO_DIR/commands/." "$DEST/commands/"
+
+if [ ! -f "$DEST/settings.json" ]; then
+    cp "$REPO_DIR/settings.example.json" "$DEST/settings.json"
+    echo "Installed default $DEST/settings.json (permissions for common git/script operations)."
+else
+    echo "NOTE: $DEST/settings.json already exists — not overwritten."
+    echo "Review $REPO_DIR/settings.example.json and merge manually if you want its permissions."
+fi
 
 echo ""
-echo "✅ Antigravity Engine installed successfully!"
-echo "To start a new project, create an empty folder, open it in your IDE, and type /ae-init"
+echo "Done. Cells and commands installed — no build step required."
+echo ""
+echo "Try it: open Claude Code in this project and run /cell-create"
+echo "Usage: ./install.sh          — install into the current project's .claude/"
+echo "       ./install.sh user     — install into ~/.claude/ for all projects (recommended)"
+echo ""
+echo "Prefer the plugin install instead? See README.md for the one-line /plugin method."
