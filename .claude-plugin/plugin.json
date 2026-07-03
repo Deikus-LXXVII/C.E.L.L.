@@ -1,0 +1,12 @@
+{
+  "name": "cell",
+  "displayName": "C.E.L.L.",
+  "description": "Claude's Evolving Logic Library — 14 specialized subagent \"cells\" and slash commands that turn Claude Code into a project orchestrator with a biological cell-division/specialization workflow.",
+  "author": {
+    "name": "Deikus-LXXVII"
+  },
+  "homepage": "https://github.com/Deikus-LXXVII/Antigravity.Engine",
+  "repository": "https://github.com/Deikus-LXXVII/Antigravity.Engine",
+  "license": "MIT",
+  "keywords": ["orchestration", "subagents", "agents", "workflow", "project-genesis"]
+}

@@ -6,19 +6,40 @@ C.E.L.L. upgrades the main agent from a solo coder into an **Orchestrator**. Lik
 
 ## Installation
 
+C.E.L.L. ships as a native Claude Code plugin — no cloning, no build step. Inside a Claude Code session:
+
+```
+/plugin marketplace add Deikus-LXXVII/Antigravity.Engine
+/plugin install cell@cell
+```
+
+Or, as a single shell command (equivalent, non-interactive):
+
 ```bash
-git clone <this repository's URL>
-cd CELL
+claude plugin marketplace add Deikus-LXXVII/Antigravity.Engine && claude plugin install cell@cell
+```
+
+That's it — all 14 cells and both slash commands are now available in every project. Update anytime with `/plugin update cell@cell`.
+
+<details>
+<summary>Alternative: manual install (no plugin marketplace)</summary>
+
+For environments where plugin marketplaces are restricted, or for local development:
+
+```bash
+git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git
+cd Antigravity.Engine
 ./install.sh            # installs into the current project's .claude/
 # or:
 ./install.sh user        # installs into ~/.claude/ for every project (recommended)
 ```
 
-No build step is required — cells and commands are plain markdown files.
+No build step is required either way — cells and commands are plain markdown files.
+</details>
 
 ## How to use: Genesis
 
-1. Run `./install.sh user` once (recommended — makes every cell available in every project, so new projects never need their own vendored copy of the starter cells).
+1. Install C.E.L.L. (above) — the plugin path makes every cell available in every project immediately, so new projects never need their own vendored copy of the starter cells.
 2. Create a new project folder (or `cd` into an existing one) and open Claude Code.
 3. Type: `/cell-create I want to build a [your project idea]`
 
@@ -55,4 +76,14 @@ See this repo's `CLAUDE.md` for the full Orchestration Conventions (which cell h
 
 ## Customization
 
-Ask `cell-builder` to create a new specialized cell, slash command, or reference doc — it will draft, verify, and save it directly under `.claude/agents/`, `.claude/commands/`, or `docs/agent-rules/`.
+Ask `cell-builder` to create a new specialized cell, slash command, or reference doc — it will draft, verify, and save it directly under `agents/`, `commands/`, or `docs/agent-rules/`.
+
+## Contributing / Local Development
+
+This repo is both the plugin and its own marketplace (`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, self-referencing via `"source": "./"`). To test changes locally without publishing:
+
+```bash
+claude --plugin-dir /path/to/this/repo
+```
+
+See this repo's `CLAUDE.md` for the full architecture, agent reference table, and orchestration conventions.

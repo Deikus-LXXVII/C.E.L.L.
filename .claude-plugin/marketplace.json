@@ -1,0 +1,14 @@
+{
+  "name": "cell",
+  "owner": {
+    "name": "Deikus-LXXVII"
+  },
+  "description": "C.E.L.L. (Claude's Evolving Logic Library) — a single-plugin marketplace distributing the cell orchestration library for Claude Code.",
+  "plugins": [
+    {
+      "name": "cell",
+      "source": "./",
+      "description": "14 specialized subagent \"cells\" and slash commands (/cell-create, /git:flow) implementing a project-genesis orchestration workflow."
+    }
+  ]
+}

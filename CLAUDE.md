@@ -29,9 +29,9 @@ The name is deliberate. Like a biological cell, this library starts a new projec
 ### Key Concepts
 
 - **Orchestrator pattern, enforced structurally.** The main thread delegates coding, research, and analysis to cells via Claude Code's `Task` tool. Unlike a prose-only "please delegate" convention, each cell's `description` field drives Claude Code's own auto-routing, and each cell's `tools:` allowlist is a real, harness-enforced restriction — not just a label.
-- **Plain files, no custom server.** Cells live at `.claude/agents/*.md`, slash commands at `.claude/commands/*.md`. There is no build step and no background server process — everything is markdown read directly by the harness.
+- **Plain files, no custom server.** In this repo, cells live at `agents/*.md` and slash commands at `commands/*.md` (plugin root — see §2.1). Once installed into a consuming project via the manual path, they land under that project's `.claude/agents/*.md` and `.claude/commands/*.md`. Either way, there is no build step and no background server process — everything is markdown read directly by the harness.
 - **Self-learning.** Each cell carries its own `## Known Quirks` section, appended to directly via `Edit` whenever it discovers a bug or gotcha, so knowledge accumulates in the file itself rather than in a separate system.
-- **Permissions over prose.** Destructive/sensitive actions (force-push, `rm`, package installs) are gated by `.claude/settings.json`'s permission rules, not by every cell repeating "please be careful" in its own prompt.
+- **Permissions over prose.** Destructive/sensitive actions (force-push, `rm`, package installs) are meant to be gated by permission rules (see `settings.example.json`), not by every cell repeating "please be careful" in its own prompt — though note this only auto-applies via the manual `install.sh` path today, see §9/§10.
 
 > [!NOTE]
 > This project was previously named "Antigravity Engine" and ran as a plugin for Google Antigravity/Gemini, with a custom MCP server providing a "library package manager" (search/save/taxonomy tools) and a delegation model enforced only by prompt convention (a mandatory `<delegation_plan>` XML block the model could still choose to skip). That architecture has been fully retired in favor of the native Claude Code system described here — see git history if you need the old design for reference.
@@ -51,20 +51,25 @@ This guide is for AI assistants (Claude instances) working on this codebase. It 
 ### 2.1 Layout
 
 ```
-.claude/
-├── agents/            # 14 cell (subagent) definitions (flat .md files)
-├── commands/           # slash commands (/cell-create, /git:flow)
-└── settings.json        # permissions (replaces the old "ask before destructive action" prose)
+.claude-plugin/
+├── plugin.json           # plugin manifest (name: "cell")
+└── marketplace.json       # self-referencing marketplace catalog (source: "./")
+agents/                  # 14 cell (subagent) definitions (flat .md files) — plugin root, not under .claude/
+commands/                 # slash commands (/cell-create, /git:flow) — plugin root
+settings.example.json     # example permissions block for the manual/install.sh path (see §10)
 docs/
-└── agent-rules/         # plain reference docs (domain knowledge + agent-class conventions)
-    ├── domain/           # e.g. swift_macos.md, openwrt_posix.md, cybersecurity.md
-    └── class/            # e.g. security_auditor.md, release_manager.md
+└── agent-rules/          # plain reference docs (domain knowledge + agent-class conventions)
+    ├── domain/            # e.g. swift_macos.md, openwrt_posix.md, cybersecurity.md
+    └── class/             # e.g. security_auditor.md, release_manager.md
 core/
-└── templates/           # starting-point templates for new cells/commands
-CLAUDE.md                # this file
+└── templates/            # starting-point templates for new cells/commands
+CLAUDE.md                 # this file (repo docs only — not loaded as plugin context, see §2.4)
 README.md
-install.sh               # copies .claude/ into a target project or ~/.claude
+install.sh                # manual/fallback installer — copies agents/ and commands/ into a target project's .claude/ or ~/.claude
 ```
+
+> [!NOTE]
+> Cells and commands live at the **plugin root** (`agents/`, `commands/`), not inside `.claude/` — this is a hard requirement of Claude Code's plugin system (only `plugin.json` goes inside `.claude-plugin/`). This repo is simultaneously its own plugin and its own single-plugin marketplace, so the primary install path is entirely inside a Claude Code session: `/plugin marketplace add <owner>/<repo>` then `/plugin install cell@cell`. See §10.
 
 ### 2.2 How delegation actually works
 
@@ -175,15 +180,20 @@ Every cell's `.md` file ends with a `## Known Quirks` section. The convention:
 
 ## 6. Development Workflow
 
-There is no build step. `.claude/agents/*.md` and `.claude/commands/*.md` are plain markdown, loaded directly by Claude Code.
+There is no build step. `agents/*.md` and `commands/*.md` are plain markdown, loaded directly by Claude Code.
 
-**Local development:**
+**Local development (test as a plugin without publishing):**
 ```bash
-./install.sh          # copy .claude/ into the current project
-./install.sh user     # copy .claude/ into ~/.claude for all projects
+claude --plugin-dir /path/to/this/repo
 ```
 
-**Editing a cell or command:** edit the `.md` file directly, then re-run `install.sh` if you're testing it from a separate consuming project (editing in place is enough if you're working directly in this repo's own `.claude/`).
+**Local development (manual path):**
+```bash
+./install.sh          # copy agents/commands into the current project's .claude/
+./install.sh user     # copy agents/commands into ~/.claude for all projects
+```
+
+**Editing a cell or command:** edit the `.md` file directly under `agents/`/`commands/`. If testing via `--plugin-dir`, run `/reload-plugins` to pick up changes without restarting. If testing via the manual path from a separate consuming project, re-run `install.sh` after editing.
 
 **Testing a change:** open a Claude Code session, either let auto-routing pick up the cell via its `description`, or explicitly invoke it, and confirm it behaves as expected and only uses its declared tools.
 
@@ -236,11 +246,11 @@ Use `$ARGUMENTS`/`$1`/`$2` for positional inputs, `` !`shell command` `` to inli
 
 ### 8.1 Adding a new cell
 
-Ask `cell-builder` (or do it directly): create `.claude/agents/cell-<role>.md` following the schema in §7.2, with Identity/Rules/Pipeline/Error Handling/Known Quirks sections. No import/registry step — the file existing under `.claude/agents/` is sufficient for Claude Code to discover it.
+Ask `cell-builder` (or do it directly): create `agents/cell-<role>.md` following the schema in §7.2, with Identity/Rules/Pipeline/Error Handling/Known Quirks sections. No import/registry step — the file existing under `agents/` is sufficient for Claude Code to discover it (run `/reload-plugins` if testing via `--plugin-dir`).
 
 ### 8.2 Adding a new slash command
 
-Create `.claude/commands/<name>.md` (or `<namespace>/<name>.md` for `/namespace:name`) following the schema in §7.3.
+Create `commands/<name>.md` (or `<namespace>/<name>.md` for `/namespace:name`) following the schema in §7.3.
 
 ### 8.3 Adding a reference doc
 
@@ -252,12 +262,14 @@ Create `docs/agent-rules/domain/<topic>.md` or `docs/agent-rules/class/<role>.md
 
 | File | Purpose |
 |---|---|
-| `.claude/agents/*.md` | The 14 cell definitions |
-| `.claude/commands/*.md` | Slash commands (`/cell-create`, `/git:flow`) |
-| `.claude/settings.json` | Permission rules (allow/ask/deny) — the structural safety mechanism |
+| `.claude-plugin/plugin.json` | Plugin manifest (name `cell`) — makes this repo installable via `/plugin install` |
+| `.claude-plugin/marketplace.json` | Self-referencing marketplace catalog (`source: "./"`) — makes this repo addable via `/plugin marketplace add` |
+| `agents/*.md` | The 14 cell definitions (plugin root, not under `.claude/`) |
+| `commands/*.md` | Slash commands (`/cell-create`, `/git:flow`) (plugin root) |
+| `settings.example.json` | Example permission rules (allow/ask/deny) for the manual/`install.sh` path — a plugin's own `settings.json` only supports `agent`/`subagentStatusLine` keys, so permissions can't ship through the plugin itself |
 | `docs/agent-rules/domain/*.md`, `docs/agent-rules/class/*.md` | Reference docs, read directly by cells |
 | `docs/agent-rules/README.md` | Index of reference docs |
-| `install.sh` | Copies `.claude/` into a target project or `~/.claude` |
+| `install.sh` | Manual/fallback installer — copies `agents/`/`commands/` into a target project's `.claude/` or `~/.claude` |
 | `core/templates/AGENT_PROMPT_TEMPLATE.md` | Starting point for a new cell |
 | `core/templates/SKILL_TEMPLATE.md` | Starting point for a new slash command |
 
@@ -267,23 +279,44 @@ Create `docs/agent-rules/domain/<topic>.md` or `docs/agent-rules/class/<role>.md
 
 ### Prerequisites
 - Claude Code (CLI, desktop, or web)
-- Bash (for `install.sh`)
+- A public GitHub repo hosting this project (or a private one with matching git credentials configured — see the plugin marketplace docs)
 
-### Install
+### Install (recommended — plugin marketplace)
+Inside a Claude Code session:
+```
+/plugin marketplace add <owner>/<repo>
+/plugin install cell@cell
+```
+Or as one non-interactive shell command:
+```bash
+claude plugin marketplace add <owner>/<repo> && claude plugin install cell@cell
+```
+No cloning, no build step. Every cell becomes immediately available, namespaced as `cell:<cell-name>` for explicit @-mentions (auto-routing via `description` works the same regardless of install method). Update with `/plugin update cell@cell`.
+
+### Install (manual/fallback)
+For environments where plugin marketplaces are restricted:
 ```bash
 git clone <this repository's URL>
-cd CELL
+cd Antigravity.Engine
 ./install.sh          # into the current project's .claude/
 # or:
 ./install.sh user     # into ~/.claude/ for every project (recommended — makes every cell available everywhere, so /cell-create never needs to vendor a local copy of the starter cells)
 ```
-No build step, no API key of its own required — cells run under whatever Claude Code session invokes them.
+No build step either way, no API key of its own required — cells run under whatever Claude Code session invokes them.
 
 ### Verify
 ```bash
-ls .claude/agents .claude/commands   # confirm files landed
+claude plugin list                     # confirm the plugin-based install landed
+# or, for the manual path:
+ls .claude/agents .claude/commands     # confirm files landed
 ```
 Then open Claude Code in the target project and run `/cell-create` to confirm the command and `cell-architect` delegation work end-to-end.
+
+### Local plugin development
+To test changes to this repo's own plugin without publishing:
+```bash
+claude --plugin-dir /path/to/this/repo
+```
 
 ---
 
@@ -293,10 +326,11 @@ Then open Claude Code in the target project and run `/cell-create` to confirm th
 |---|---|---|
 | A cell isn't auto-selected for a request that should route to it | `description` isn't trigger-phrased clearly enough | Rewrite it as "Use this agent when `<concrete condition>`." |
 | A cell tries to use a tool and is blocked | Tool isn't in its `tools:` allowlist | Either that's working as intended (tighten the request/route to a different cell), or add the tool if the cell genuinely needs it |
-| A destructive command runs without confirmation | `.claude/settings.json`'s `ask`/`deny` lists don't cover it | Add the specific `Bash(...)` pattern to `ask` or `deny` |
-| `/cell-create` can't find `cell-architect`/`cell-environment`/`cell-builder` to seed a new project | C.E.L.L. was never installed with `install.sh user`, and no local library clone was found | Run `install.sh user` once (recommended), or point the command at your local C.E.L.L. clone so it can vendor the three seed files |
+| A destructive command runs without confirmation | Installed via the plugin path, where `settings.example.json`'s permissions never apply (plugin `settings.json` only supports `agent`/`subagentStatusLine`) | Either accept this tradeoff of the plugin path, or use the manual `install.sh` path and copy `settings.example.json` to `.claude/settings.json` in the target project/`~/.claude` |
+| `/cell-create` can't find `cell-architect`/`cell-environment`/`cell-builder` to seed a new project | C.E.L.L. wasn't installed (neither `/plugin install cell@cell` nor `install.sh user` has been run), and no local library clone was found | Install via the plugin marketplace (recommended, §10) or run `install.sh user` once — either makes the three seed cells available everywhere so nothing needs vendoring per-project |
+| `/plugin marketplace add` fails or can't find the repo | Repo is private, or the `owner/repo` shorthand is wrong | Make the GitHub repo public (Settings → General → Danger Zone → Change visibility), then retry with the exact `owner/repo` |
 | A cell's prompt references a tool/mechanism that doesn't exist (`invoke_subagent`, `thinking_level`, `run_command`, etc.) | Leftover from the retired Gemini/MCP architecture | Replace with the real Claude Code equivalent — see §2.2 and the cell reference table in §3 |
 
 ---
 
-**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline.
+**Last Updated**: 2026 — renamed to C.E.L.L. (Claude's Evolving Logic Library); all cells renamed to the `cell-*` convention; `/cell-create` redesigned around the 5-stage Genesis Pipeline; restructured as a native Claude Code plugin + self-referencing marketplace for one-command installation.
