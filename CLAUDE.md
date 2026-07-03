@@ -1,937 +1,283 @@
 # Antigravity.Engine: Developer Guide for AI Assistants
 
-**For Claude instances and AI assistants working on the Antigravity orchestration engine and library system.**
+**For Claude instances and AI assistants working on the Antigravity orchestration engine — a library of specialized subagents and slash commands for Claude Code.**
 
 ## Table of Contents
 
 1. [Project Overview & Philosophy](#1-project-overview--philosophy)
-2. [Architecture & Core Concepts](#2-architecture--core-concepts)
-3. [Resource System (Library)](#3-resource-system-library)
-4. [MCP Server & Tools](#4-mcp-server--tools)
-5. [Development Workflow](#5-development-workflow)
-6. [Code Conventions & Patterns](#6-code-conventions--patterns)
-7. [Extending the System](#7-extending-the-system)
-8. [Critical Files Reference](#8-critical-files-reference)
-9. [Setup & Installation](#9-setup--installation)
-10. [Troubleshooting & Self-Learning](#10-troubleshooting--self-learning)
+2. [Architecture](#2-architecture)
+3. [Agent Reference](#3-agent-reference)
+4. [Orchestration Conventions](#4-orchestration-conventions)
+5. [Self-Learning / Quirks Convention](#5-self-learning--quirks-convention)
+6. [Development Workflow](#6-development-workflow)
+7. [Code Conventions & Patterns](#7-code-conventions--patterns)
+8. [Extending the System](#8-extending-the-system)
+9. [Critical Files Reference](#9-critical-files-reference)
+10. [Setup & Installation](#10-setup--installation)
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
 ## 1. Project Overview & Philosophy
 
-**Antigravity.Engine** is a sophisticated orchestration engine and library system that transforms an AI agent from a solo contributor into an effective orchestrator of specialized subagents. It provides a strict cognitive pipeline, robust resource management, and a library of 15+ pre-built specialist agents for automation tasks like architecture analysis, environment setup, documentation, security audits, and Git workflows.
+**Antigravity.Engine** is an orchestration layer for Claude Code: a set of 13 specialized subagents and 2 slash commands that turn the main conversation from a solo coder into an **Orchestrator** that delegates focused work to the right specialist.
 
 ### Key Concepts
 
-- **Orchestrator Pattern**: The main agent never codes directly—it delegates to specialized subagents (architect, builder, cleaner, security analyst, etc.)
-- **Library-Based Resources**: Everything is a discoverable, reusable resource: agents, rules, skills, scripts, and domain-specific guidance
-- **MCP Server Hub**: All persistence and resource management flows through an MCP (Model Context Protocol) server with built-in validation
-- **Strict Cognitive Pipeline**: Every project follows a 6-step pipeline: Architect Analysis → Environment Setup → Infrastructure Planning → Builder Execution → QA Validation → Execution Phase
-- **Self-Learning System**: Agents continuously improve through a quirks system, recording bugs, workarounds, and discoveries
+- **Orchestrator pattern, enforced structurally.** The main thread delegates coding, research, and analysis to subagents via Claude Code's `Task` tool. Unlike a prose-only "please delegate" convention, each subagent's `description` field drives Claude Code's own auto-routing, and each subagent's `tools:` allowlist is a real, harness-enforced restriction — not just a label.
+- **Plain files, no custom server.** Subagents live at `.claude/agents/*.md`, slash commands at `.claude/commands/*.md`. There is no build step and no background server process — everything is markdown read directly by the harness.
+- **Self-learning.** Each subagent carries its own `## Known Quirks` section, appended to directly via `Edit` whenever it discovers a bug or gotcha, so knowledge accumulates in the file itself rather than in a separate system.
+- **Permissions over prose.** Destructive/sensitive actions (force-push, `rm`, package installs) are gated by `.claude/settings.json`'s permission rules, not by every agent repeating "please be careful" in its own prompt.
+
+> [!NOTE]
+> This repository previously ran as a plugin for Google Antigravity/Gemini, with a custom MCP server providing a "library package manager" (search/save/taxonomy tools) and a delegation model enforced only by prompt convention (a mandatory `<delegation_plan>` XML block the model could still choose to skip). That architecture has been fully retired in favor of the native Claude Code system described here — see git history if you need the old design for reference.
 
 ### Target Users
 
-This guide is written for AI assistants (Claude instances) working on the Antigravity codebase. It explains how to:
-- Understand the MCP architecture and tool system
-- Read and modify resources (agents, rules, skills, scripts)
-- Follow strict validation patterns before persisting changes
-- Extend the system with new agents, domain rules, and skills
-- Debug and troubleshoot using the self-learning quirks system
+This guide is for AI assistants (Claude instances) working on this codebase. It explains how to:
+- Understand which subagent handles which kind of request, and how delegation actually works in Claude Code
+- Read and modify subagents, slash commands, and reference docs
+- Extend the system with new agents, commands, or domain reference docs
+- Use the self-learning "Known Quirks" convention
 
 ---
 
-## 2. Architecture & Core Concepts
+## 2. Architecture
 
-### 2.1 Core Components
-
-**MCP Server** (`core/mcp-server/index.ts`)
-- Single-file TypeScript server (500+ lines) built on `@modelcontextprotocol/sdk`
-- Exposes 10 tools via JSON-RPC protocol for resource management
-- Implements antiengine-guard validation system for YAML frontmatter, syntax, and logging requirements
-- Automatically creates timestamped backups of modified resources
-
-**Library System** (`core/library/` and `library/`)
-- Central repository of agents, rules, skills, scripts, and domain-specific guidance
-- Organized by resource type: `agents/`, `domain_rules/`, `agent_rules/`, `skill_rules/`, `script_rules/`, `rule_rules/`, `bootstrap/`, `skills/`, `scripts/`
-- Taxonomy-driven: All resources are labeled from a controlled vocabulary (taxonomy.json)
-- Versioned via backup system: Last 3 versions of each resource retained automatically
-
-**Validation System** (antiengine-guard)
-- Enforces YAML frontmatter structure (name, description, labels, danger_level, danger_details)
-- Validates labels exist in taxonomy.json before persistence
-- Checks script syntax (bash -n for .sh, node --check for .js/.ts)
-- Requires daily logging system in all scripts (logs/<script_name>/YYYY-MM-DD.log pattern)
-- Prevents overwrites with automatic versioned backups
-
-**Taxonomy System** (`library/taxonomy.json`)
-- Central registry of ~20 allowed labels
-- Examples: `builder`, `task`, `guidelines`, `bootstrap`, `qa`, `testing`, `agents`, `researcher`, `web`, `developer`, `openwrt`, `swift`, `audio`, `ai`, `meta`
-- New labels must be registered via `register_label` MCP tool before use
-
-### 2.2 Data Flow
+### 2.1 Layout
 
 ```
-Agent Request
-    ↓
-MCP Tool Call (search_library, save_to_library, etc.)
-    ↓
-Library Operation (read/write resource)
-    ↓
-antiengine-guard Validation
-    ├─ Check YAML frontmatter
-    ├─ Validate labels in taxonomy
-    ├─ Check script syntax & logging
-    └─ Create timestamped backup
-    ↓
-Persistence to disk (.agents/, library/)
+.claude/
+├── agents/            # 13 subagent definitions (flat .md files)
+├── commands/           # slash commands (/ae-init, /git:flow)
+└── settings.json        # permissions (replaces the old "ask before destructive action" prose)
+docs/
+└── agent-rules/         # plain reference docs (domain knowledge + agent-class conventions)
+    ├── domain/           # e.g. swift_macos.md, openwrt_posix.md, cybersecurity.md
+    └── class/            # e.g. security_auditor.md, release_manager.md
+core/
+└── templates/           # starting-point templates for new agents/commands
+CLAUDE.md                # this file
+README.md
+install.sh               # copies .claude/ into a target project or ~/.claude
 ```
 
-### 2.3 Resource Types
+### 2.2 How delegation actually works
 
-| Type | Location | Persistence | Validation |
-|------|----------|-------------|-----------|
-| **agents** | `agents/` or `library/agents/` | Via save_to_library | YAML: name, description, enable_mcp_tools, etc. |
-| **rules** | `library/rules/` | Via save_to_library | YAML: description, labels, danger_level |
-| **skills** | `skills/` or `library/skills/` | Via save_to_library | YAML: description, labels, danger_level |
-| **scripts** | `library/scripts/` | Via save_to_library | YAML + mandatory daily logging + syntax check |
-| **bootstrap** | `library/bootstrap/` | Via save_to_library | YAML: description, labels, danger_level |
-| **domain_rules** | `library/domain_rules/` | Via save_to_library | YAML: description, labels, danger_level |
-| **agent_rules** | `library/agent_rules/` | Via save_to_library | YAML: description, labels, danger_level |
-| **skill_rules** | `library/skill_rules/` | Via save_to_library | YAML: description, labels, danger_level |
-| **script_rules** | `library/script_rules/` | Via save_to_library | YAML: description, labels, danger_level |
-| **rule_rules** | `library/rule_rules/` | Via save_to_library | YAML: description, labels, danger_level |
+1. The user or main thread states a request.
+2. Claude Code compares the request against every subagent's `description` field and either auto-routes or the main thread explicitly calls `Task(subagent_type: "<name>", prompt: "...")`.
+3. The subagent runs with **only** the tools listed in its `tools:` frontmatter — this is enforced by the harness, not by the subagent choosing to behave.
+4. The subagent's final response is returned directly to the orchestrator as its result. There is no separate "send message back" step.
+5. **Subagents cannot spawn further subagents.** Only the orchestrating (main) thread can call `Task`. If a subagent's work needs independent verification (e.g. `antiengine-builder`'s output should be checked by `antiengine-qa`), the subagent ends its report with an explicit recommendation, and the orchestrator performs that follow-up `Task` call itself. See §4.3.
+
+### 2.3 Reference docs (`docs/agent-rules/`)
+
+Domain knowledge (Swift, OpenWrt, security, etc.) and agent-class conventions (what a "security auditor" or "release manager" role generally looks like) live as plain markdown under `docs/agent-rules/`. Any subagent can `Read` these directly by path — there's no import/registry step. See `docs/agent-rules/README.md` for the index.
 
 ---
 
-## 3. Resource System (Library)
+## 3. Agent Reference
 
-### 3.1 YAML Frontmatter Requirements
+| Agent | Tools | Use when... |
+|---|---|---|
+| `antiengine-builder` | Read, Write, Edit, Glob, Grep, WebSearch, Bash | Creating or refactoring a subagent, slash command, or reference doc in this repo |
+| `antiengine-qa` | Read, Bash, Grep, Glob | Verifying a newly created/modified agent or command before treating it as done |
+| `prompt-engineer` | Read, Write, Edit | Drafting or refining any subagent/command prompt using Claude-specific practices |
+| `project-architect` | Read, Write, WebSearch | Right after project init, or a major architectural pivot — defines the tech stack |
+| `environment-setup` | Read, Write, Bash, WebSearch | Auditing/installing local dev tools, logging them to `docs.llm/tools.md` |
+| `doc-writer` | Read, Write, Edit, Grep, Glob, WebSearch | Keeping `docs.llm/` and inline docs in sync with code changes (background) |
+| `project-cleaner` | Read, Write, Grep, Glob, Bash | Reporting dead code / unused deps / stale logs (never deletes) (background) |
+| `security-analyst` | Read, Grep, Glob, WebSearch | Auditing for OWASP Top 10 issues, insecure deps, hardcoded secrets — **read-only** (background) |
+| `git-master` | Bash, Read | Repo init, GitHub repo creation, remotes, initial push (beyond routine commits) |
+| `backend-developer` | Read, Write, Edit, Bash, Grep, Glob | TypeScript/backend services, API design, tool/server implementations |
+| `swift-developer` | Read, Write, Edit, Bash | macOS Swift 5.10+, Foundation.Process, CryptoKit, XPC |
+| `openwrt-developer` | Read, Write, Edit, Bash, WebSearch | OpenWrt: POSIX/ash scripts, UCI, procd, ubus |
+| `audio-ai-master` | Read, Write, Edit, Bash, WebSearch | macOS Audio AI pipelines: STT/TTS, real-time routing, local LLM audio bridging |
+| `web-researcher` | WebSearch, WebFetch, Write | Deep, cited web research on an unfamiliar library/API/best-practice question |
 
-All resources must begin with YAML frontmatter enclosed in `---` delimiters.
+Slash commands:
 
-**For Agents (AGENT.md)**:
-```yaml
----
-name: agent-name
-description: "What this agent does and specializes in"
-enable_mcp_tools: true
-enable_write_tools: true
-enable_subagent_tools: true
-labels: ["relevant", "taxonomy", "labels"]
-danger_level: "High"
-danger_details: "Why this agent is considered high-risk"
----
-```
-
-**For Rules, Skills, Domain Rules, etc. (.md files)**:
-```yaml
----
-name: "resource-name"
-description: "Clear explanation of what this resource provides"
-labels: ["taxonomy", "labels"]
-danger_level: "Low|Medium|High"
-danger_details: "Specific risks or side effects"
----
-```
-
-### 3.2 Taxonomy Labels
-
-Current labels in `library/taxonomy.json`:
-
-| Label | Meaning |
-|-------|---------|
-| `builder` | Internal resources for Antigravity Builder agent |
-| `task` | Task templates and instructions for agents |
-| `guidelines` | General best practices and development guidance |
-| `bootstrap` | Core resources injected into new projects |
-| `qa` | Quality assurance and testing-related |
-| `testing` | Sandboxes, assertions, and mock isolation |
-| `agents` | Resources related to autonomous agents |
-| `researcher` | Research-focused tools and agents |
-| `web` | Web technologies and searching |
-| `developer` | Developer agents that write code |
-| `openwrt` | OpenWrt routers and embedded Linux |
-| `swift` | Apple Swift programming language |
-| `luci` | OpenWrt LuCI web interface |
-| `javascript` | JavaScript and ES6+ |
-| `skills` | Skills and executable tools |
-| `audio` | Audio pipelines, STT, TTS |
-| `mac` | macOS and Apple Silicon |
-| `ai` | AI, MLX, and local models |
-| `meta` | Rules about rules |
-
-**To use a new label**, call `register_label` MCP tool first with the label name and description.
-
-### 3.3 antiengine-guard Validation Rules
-
-The validation system enforces these non-negotiable requirements:
-
-1. **YAML Frontmatter**: All text resources MUST have `---` at top and bottom
-2. **Required Fields**: All resources MUST include `description:` and `labels:`
-3. **Label Validation**: All labels in `labels: [...]` MUST exist in taxonomy.json
-4. **Danger Level**: All resources MUST specify `danger_level:` (High/Medium/Low) and `danger_details:`
-5. **Script Logging**: All scripts MUST implement daily log rotation:
-   - Pattern: `logs/<script_name>/<YYYY-MM-DD>.log`
-   - Bash example: `LOG_DIR="logs/my_script"; mkdir -p "$LOG_DIR"; LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d).log"`
-   - Node example: `const logDir = path.join("logs", "my_script"); fs.mkdirSync(logDir, { recursive: true }); const logFile = path.join(logDir, new Date().toISOString().split('T')[0] + '.log');`
-6. **Script Syntax**: All scripts MUST pass syntax validation (bash -n for .sh, node --check for .js/.ts)
-7. **Backups**: `save_to_library` automatically creates timestamped backups, keeping last 3 versions
-
-### 3.4 Resource Organization
-
-**Agent File Structure**:
-```
-agents/agent-name/
-├── AGENT.md              # System prompt with YAML + XML instructions
-└── references/
-    └── quirks.md        # Self-learning knowledge base
-```
-
-**Domain Rule Pattern**:
-```
-library/domain_rules/builder_rules_domain_<domain>.md
-```
-Example: `builder_rules_domain_swift.md`, `builder_rules_domain_typescript.md`
-
-**Skill Structure**:
-```
-skills/skill-name/
-├── SKILL.md              # Executable skill definition with YAML
-└── (optional supporting files)
-```
+| Command | Purpose |
+|---|---|
+| `/ae-init [idea]` | Scaffold `docs.llm/`, `.gitignore`, and invoke `project-architect` |
+| `/git:flow [commit\|branch\|pr]` | Analyze `git diff`, propose a Conventional Commit, manage branches safely |
 
 ---
 
-## 4. MCP Server & Tools
+## 4. Orchestration Conventions
 
-The MCP server (`core/mcp-server/index.ts`) exposes 10 tools via JSON-RPC protocol. All tools are available through the MCP server interface.
+### 4.1 Request routing
 
-### 4.1 Tool Reference
+If a request clearly matches one of the specialists in §3, delegate to it via `Task` rather than doing the work in the main thread. A few concrete mappings:
+- Generating/refactoring this repo's own agents, commands, or reference docs → `antiengine-builder`
+- Git operations beyond a routine commit → `git-master` (routine commit/branch → `/git:flow`)
+- Writing JSDoc/docstrings or updating `docs.llm/guide.md` → `doc-writer`
+- Backend/TypeScript/API implementation → `backend-developer`
+- Security auditing or checking for hardcoded secrets → `security-analyst`
+- Deep web research or documentation synthesis → `web-researcher`
+- Cleaning dead code/unused deps/obsolete logs → `project-cleaner`
 
-#### 1. **search_library**
-Search for resources by type and optional keywords.
+### 4.2 Recommended development pipeline
 
-**Parameters**:
-- `type` (required): Resource type (agents, rules, skills, scripts, bootstrap, domain_rules, agent_rules, skill_rules, script_rules, rule_rules)
-- `query` (optional): Search keywords for filtering by description or filename
+For substantial work, the following staged approach (adapted from the engine's original 6-step pipeline) remains good practice, though it's guidance rather than a machine-enforced gate:
+1. **Discussion** — clarify the request.
+2. **Pros/Cons** — weigh the approach.
+3. **Alternatives** — consider other designs.
+4. **Blueprint** — write the plan before executing.
+5. **Documentation** (optional) — update docs if the change is user-facing.
+6. **Execution** — implement.
 
-**Output**: Array of matching resources with names and descriptions
+Reset to step 1 if the underlying concept changes mid-flight rather than patching a blueprint that no longer fits.
 
-**Restrictions**: Some types (script_rules, agent_rules, domain_rules, skill_rules, rule_rules) are restricted to antiengine-builder only
+**Empirical verification (zero trust):** before declaring anything done, actually run it — the relevant build/typecheck/test command, not just a visual review of the diff.
 
-**Example**:
-```
-search_library(type: "domain_rules", query: "swift")
-→ Returns all Swift domain rules
-```
+### 4.3 Builder → QA pattern (replaces the old recursive "Tester Subagent" spawn)
 
-#### 2. **get_resource_content**
-Retrieve the full content of a resource. Automatically alerts to danger_level.
+`antiengine-builder` cannot spawn its own verifier — Claude Code subagents don't call `Task`. Instead: `antiengine-builder` finishes its artifact and explicitly recommends verification in its final report (e.g. *"Recommend invoking `antiengine-qa` to verify this before treating it as done"*). The orchestrator then performs that `Task` call itself. This is the general pattern for any multi-stage build→verify flow in this repo.
 
-**Parameters**:
-- `type` (required): Resource type
-- `name` (required): Resource filename or name
+### 4.4 Background subagents
 
-**Output**: Full resource content with metadata and danger warnings
-
-**Example**:
-```
-get_resource_content(type: "agents", name: "antiengine-builder")
-→ Returns full AGENT.md with system prompt
-```
-
-#### 3. **save_to_library**
-Persist new or updated resources. Triggers antiengine-guard validation before writing.
-
-**Parameters**:
-- `type` (required): Resource type
-- `name` (required): Resource filename/name
-- `content` (required): Full resource content (must include YAML frontmatter)
-
-**Output**: Success confirmation or validation error details
-
-**Validation**: Checks YAML, labels, danger_level, syntax, logging requirements
-
-**Backups**: Automatically creates timestamped backup before overwriting
-
-#### 4. **setup_global_prompt**
-Append an instruction to the global AGENTS.md prompt file for the orchestrator.
-
-**Parameters**:
-- `instruction` (required): Text to append
-
-**Output**: Confirmation of append
-
-#### 5. **init_project**
-Initialize a new Antigravity project workspace.
-
-**Parameters**:
-- `targetDir` (required): Absolute path to target directory
-
-**Output**: Initialization report with created files and bootstrap resources injected
-
-**Creates**:
-- `.agents/` directory structure
-- `docs.llm/` directory with context files
-- `.gitignore` with Antigravity patterns
-- Bootstrap resources (core_engine_protocol.md, ae-chains.md, etc.)
-
-#### 6. **get_taxonomy**
-Retrieve all registered labels and descriptions.
-
-**Parameters**: None
-
-**Output**: JSON object mapping label names to descriptions
-
-**Use before**: Using new labels in resources
-
-#### 7. **register_label**
-Register a new label in the global taxonomy.
-
-**Parameters**:
-- `name` (required): Label name (e.g., "swift", "python")
-- `description` (required): What this label represents
-
-**Output**: Success confirmation
-
-**Usage**: Call this BEFORE using the label in any resource
-
-#### 8. **import_resource**
-Copy a resource from global library to a local project's `.agents/` directory.
-
-**Parameters**:
-- `type` (required): Resource type (agents, rules, skills, scripts)
-- `name` (required): Resource name/filename
-- `targetProjectDir` (required): Absolute path to project root
-
-**Output**: Import success/failure message
-
-#### 9. **finish_builder_task**
-Clear the builder's `.scratch/` workspace after task completion.
-
-**Parameters**: None
-
-**Output**: Cleanup confirmation
-
-**Important**: Call this ONCE at the very end of entire builder assignment, not for each subtask
-
-#### 10. **append_quirk**
-Append a discovered bug, feature, or workaround to an agent's quirks knowledge base (self-learning).
-
-**Parameters**:
-- `agentName` (required): Agent name (e.g., "antiengine-builder")
-- `quirkText` (required): Quirk description (must include Problem, Environment, Solution)
-
-**Output**: Confirmation of append
-
-**Format**: Use structured format with Problem, Environment, Solution sections
-
-### 4.2 Tool Access Patterns
-
-Most agents have access to core tools via `enable_mcp_tools: true`. However:
-
-- **Restricted to antiengine-builder**: script_rules, agent_rules, domain_rules, skill_rules, rule_rules
-- **Available to all**: search_library, get_resource_content, init_project, get_taxonomy, import_resource
-- **Common pattern**: search_library → get_resource_content → save_to_library
+`doc-writer`, `project-cleaner`, and `security-analyst` are documented as **non-blocking background subagents**: they don't require upfront orchestrator approval before running, because their work is read-mostly/report-producing (project-cleaner and security-analyst never modify files at all; the former only writes a report, the latter is fully read-only). Any other agent that writes/executes should be treated as needing the normal blueprint→approval flow from §4.2 before it acts.
 
 ---
 
-## 5. Development Workflow
+## 5. Self-Learning / Quirks Convention
 
-### 5.1 Build Process
+Every subagent's `.md` file ends with a `## Known Quirks` section. The convention:
+1. **Before starting a task**, a subagent should note what's already recorded in its own `## Known Quirks` section (it's right there in its own prompt — no separate file to fetch).
+2. **When it discovers something new** — a bug, an undocumented gotcha, a workaround — it appends a short entry directly via `Edit`, in this format:
+   ```markdown
+   - **Problem**: <what went wrong or was unexpected>
+     **Environment**: <where/when it happened>
+     **Solution**: <the fix or workaround>
+   ```
+3. Knowledge accumulates in the agent's own file over time — there is no external quirks database or MCP tool involved.
 
+---
+
+## 6. Development Workflow
+
+There is no build step. `.claude/agents/*.md` and `.claude/commands/*.md` are plain markdown, loaded directly by Claude Code.
+
+**Local development:**
 ```bash
-npm run build
+./install.sh          # copy .claude/ into the current project
+./install.sh user     # copy .claude/ into ~/.claude for all projects
 ```
 
-This executes:
-```bash
-esbuild core/mcp-server/index.ts --bundle --platform=node --outfile=dist/mcp-server.js
-```
+**Editing an agent or command:** edit the `.md` file directly, then re-run `install.sh` if you're testing it from a separate consuming project (editing in place is enough if you're working directly in this repo's own `.claude/`).
 
-- Bundles the MCP server into a single distributable file
-- Output: `dist/mcp-server.js` (standalone Node.js executable)
-- Run this after any TypeScript changes to the MCP server
-
-### 5.2 Testing
-
-The project uses custom Node.js scripts for MCP protocol testing (no Jest/Mocha):
-
-**test_mcp.js**: Lists all available MCP tools
-```bash
-node test_mcp.js
-```
-- Spawns MCP server via stdio
-- Sends tools/list JSON-RPC request
-- Outputs available tool names and schemas
-
-**run_mcp.js**: Invokes specific MCP tools
-```bash
-node run_mcp.js
-```
-- Used for testing individual tool behavior
-- Spawns server and sends tool invocation requests
-- Useful for debugging new tools or resource persistence
-
-### 5.3 Installation
-
-The `install.sh` script installs Antigravity.Engine to the Gemini plugin directory:
-
-```bash
-git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git ~/.gemini/config/plugins/antiengine
-cd ~/.gemini/config/plugins/antiengine
-./install.sh
-```
-
-Steps performed:
-1. Verifies destination path
-2. Runs `npm install` in core/mcp-server/
-3. Builds MCP server via `npm run build`
-4. Registers plugin via `plugin.json`
-
-### 5.4 Local Development
-
-For iterative development:
-
-```bash
-npm install                    # Install dependencies
-npm run build                  # Build MCP server
-node test_mcp.js              # Test tool availability
-./dev_link.sh                 # Create symlink for live development
-```
-
-### 5.5 Environment Setup
-
-**Requirements**:
-- Node.js 18+ (for TypeScript 5.3.3 and esbuild compatibility)
-- npm or yarn for package management
-- Google Gemini API key (for agent operations)
-
-**Environment Variables** (from `.env.template`):
-```bash
-GEMINI_API_KEY=your_api_key_here
-```
+**Testing a change:** open a Claude Code session, either let auto-routing pick up the subagent via its `description`, or explicitly invoke it, and confirm it behaves as expected and only uses its declared tools.
 
 ---
 
-## 6. Code Conventions & Patterns
+## 7. Code Conventions & Patterns
 
-### 6.1 Naming Conventions
+### 7.1 Naming
 
 | Context | Convention | Examples |
-|---------|-----------|----------|
-| Agent directories | kebab-case | `project-architect`, `antiengine-builder`, `security-analyst` |
-| Resource files | snake_case (rules) | `builder_rules_domain_swift.md`, `builder_rules_class_developer.md` |
-| Skill directories | kebab-case | `ae-init`, `git-flow-automator`, `mcp_debugging_skill` |
-| MCP tool names | snake_case | `search_library`, `save_to_library`, `get_resource_content` |
-| Directory names | lowercase hyphenated | `agents/`, `skills/`, `library/`, `domain_rules/` |
+|---|---|---|
+| Subagent files | kebab-case | `project-architect.md`, `antiengine-builder.md` |
+| Slash command files | kebab-case, subfolders namespace | `ae-init.md` → `/ae-init`; `git/flow.md` → `/git:flow` |
+| Reference docs | snake_case | `swift_macos.md`, `security_auditor.md` |
 
-### 6.2 File Organization
-
-```
-Antigravity.Engine/
-├── core/
-│   ├── mcp-server/index.ts       # MCP server (500+ lines)
-│   ├── library/                  # Core library resources
-│   │   ├── agents/
-│   │   ├── domain_rules/
-│   │   ├── agent_rules/
-│   │   ├── bootstrap/
-│   │   └── taxonomy.json
-│   └── templates/                # Scaffolding templates
-├── agents/                       # 15+ local agent definitions
-│   └── agent-name/
-│       ├── AGENT.md
-│       └── references/quirks.md
-├── skills/                       # Local skills
-│   └── skill-name/SKILL.md
-├── library/                      # Symlink to core/library or resources
-├── plugin.json                   # MCP server registration
-├── package.json                  # Node dependencies
-├── tsconfig.json                 # TypeScript configuration
-├── .env.template                 # Environment variables template
-├── install.sh                    # Installation script
-└── CLAUDE.md                     # This file
-```
-
-### 6.3 Agent File Structure
-
-Each agent has a consistent structure:
-
-**AGENT.md**:
-```yaml
----
-name: agent-name
-description: "Clear description of agent specialization"
-enable_mcp_tools: true
-enable_write_tools: true
-enable_subagent_tools: true
-labels: ["taxonomy", "labels"]
-danger_level: "High|Medium|Low"
-danger_details: "Why this level"
----
-
-<instructions>
-# Identity
-You are the [Agent Name]...
-
-# Capabilities & Guardrails
-You have access to...
-
-# Rules
-1. Rule one
-2. Rule two
-...
-</instructions>
-```
-
-**references/quirks.md** (Self-Learning Knowledge Base):
-```markdown
-# Quirks & Discoveries
-
-- **Date:** YYYY-MM-DD
-  - **Problem:** What went wrong or was unexpected
-  - **Environment:** Where/when it happened (MCP version, OS, etc.)
-  - **Solution:** How to fix or workaround it
-
-- **Date:** YYYY-MM-DD
-  - **Problem:** ...
-```
-
-### 6.4 Logging Patterns (Required for Scripts)
-
-All scripts MUST implement daily log rotation or antiengine-guard will reject them.
-
-**Bash Pattern**:
-```bash
-#!/bin/bash
-
-LOG_DIR="logs/my_script"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d).log"
-
-echo "Script started at $(date)" >> "$LOG_FILE"
-# ... script logic ...
-echo "Script completed at $(date)" >> "$LOG_FILE"
-```
-
-**Node.js Pattern**:
-```js
-const fs = require('fs');
-const path = require('path');
-
-const logDir = path.join('logs', 'my_script');
-fs.mkdirSync(logDir, { recursive: true });
-const logFile = path.join(logDir, new Date().toISOString().split('T')[0] + '.log');
-
-console.log('Script started');
-fs.appendFileSync(logFile, `Started at ${new Date().toISOString()}\n`);
-// ... script logic ...
-fs.appendFileSync(logFile, `Completed at ${new Date().toISOString()}\n`);
-```
-
-### 6.5 Critical Patterns
-
-**Orchestrator vs. Specialist**:
-- Main orchestrator agent reads roadmap, delegates to specialists
-- Specialists never invoke other specialists directly
-- Each specialist has a single focused responsibility
-
-**Validation-First Architecture**:
-- Check existing resources before modifying them
-- Understand validation rules before attempting to save
-- Use antiengine-guard feedback to fix frontmatter issues
-
-**MCP-First Persistence**:
-- Never write directly to library/ directory
-- Always use `save_to_library` MCP tool for persistence
-- Backup system is automatic via MCP server
-
-**Taxonomy-Driven Labels**:
-- Never invent labels; use only registered taxonomy labels
-- Register new labels with `register_label` before using them
-- Label choices are part of resource discoverability
-
----
-
-## 7. Extending the System
-
-### 7.1 Adding a New Agent
-
-1. **Conceptualize**: Define the agent's specialization and core responsibilities
-2. **Research Context**: Use `search_library` to find similar agent_rules and domain_rules
-3. **Check Builder Resources**: Get the antiengine-builder's task_guidelines and agent classes
-4. **Write AGENT.md**: Create full system prompt with identity, capabilities, rules, cognitive pipeline
-5. **Save to Library**: Use `save_to_library` with type `agents` and correct YAML frontmatter
-6. **Import to Project**: Use `import_resource` to copy to project's `.agents/` directory
-
-Example YAML frontmatter for new agent:
-```yaml
----
-name: "swift-code-reviewer"
-description: "Specialized agent for reviewing Swift iOS code with style and performance checks"
-enable_mcp_tools: true
-enable_write_tools: true
-enable_subagent_tools: false
-labels: ["agents", "developer", "swift"]
-danger_level: "Low"
-danger_details: "Read-only code review, no execution risk"
----
-```
-
-### 7.2 Adding Domain Rules
-
-Domain rules guide agents on technology-specific practices.
-
-1. **Check for Existing**: Use `search_library` type `domain_rules` to see if one exists
-2. **Create Rule File**: Name it `builder_rules_domain_<domain>.md`
-3. **Add Frontmatter**: Include description, labels (must include "builder", "developer", domain name)
-4. **Write 10+ Rules**: Concrete guidance with examples for this tech domain
-5. **Include Links**: Reference official documentation and best practices
-6. **Save to Library**: Use `save_to_library` with type `domain_rules`
-
-Example frontmatter:
-```yaml
----
-name: "builder_rules_domain_swift"
-description: "Guidance for building Swift/iOS agents and tools"
-labels: ["builder", "developer", "swift", "mac"]
-danger_level: "Low"
-danger_details: "None - guidance only"
----
-```
-
-### 7.3 Adding Skills
-
-Skills are executable capabilities exposed as slash-commands.
-
-1. **Create SKILL.md**: Define command, description, step-by-step instructions
-2. **Add Frontmatter**: Include name, description, labels, danger_level
-3. **Write Clear Steps**: What users should do, what happens, expected output
-4. **Save to Library**: Use `save_to_library` with type `skills`
-5. **Import to Project**: Use `import_resource` to make available
-
-Example skill:
-```yaml
----
-name: "git-squash-commits"
-description: "Squash multiple commits into one with a clean message"
-labels: ["skills", "developer", "git"]
-danger_level: "Medium"
-danger_details: "Rewrites git history; ensure all developers are synced"
----
-
-## Instructions
-
-1. Identify the commit range you want to squash
-2. Run `git rebase -i <base-commit>`
-3. Mark all commits except the first as 'squash'
-4. Write a new commit message
-5. Force-push with `git push origin --force-with-lease`
-```
-
-### 7.4 Adding Scripts
-
-Scripts are persistent, logged executables stored in the library.
-
-**Critical Requirements**:
-- MUST implement daily logging (non-negotiable)
-- MUST pass syntax validation
-- MUST include complete YAML frontmatter
+### 7.2 Subagent frontmatter schema (one schema, no exceptions)
 
 ```yaml
 ---
-name: "backup_library.sh"
-description: "Daily backup script for the Antigravity library"
-labels: ["scripts", "maintenance", "builder"]
-danger_level: "Low"
-danger_details: "Reads only, no write risk"
+name: agent-name-kebab-case
+description: "Use this agent when <trigger condition>."
+tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch   # explicit allowlist, minimum needed
 ---
-
-#!/bin/bash
-LOG_DIR="logs/backup_library"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d).log"
-
-echo "Starting library backup at $(date)" >> "$LOG_FILE"
-# ... backup logic ...
 ```
 
-### 7.5 Registering New Taxonomy Labels
+No `enable_*_tools` booleans, no `labels`/`danger_level`/`danger_details` fields — those belonged to the retired MCP validation system. If an agent carries real risk, note it as a `> [!CAUTION]` callout in the prompt body, backed by an actually-restrictive `tools:` list (e.g. `security-analyst` has no `Write`/`Edit`/`Bash` at all).
 
-If existing labels don't fit your use case:
+### 7.3 Slash command frontmatter schema
 
-1. **Check Current Labels**: Call `get_taxonomy` to see all registered labels
-2. **Register New Label**: Use `register_label` with name and description
-3. **Use in Resources**: Include the new label in resource `labels: [...]` arrays immediately
-
+```yaml
+---
+description: "Shown in /help"
+argument-hint: "[optional-arg-hint]"
+allowed-tools: "Bash(git add:*), Bash(git commit:*)"   # optional scoping
+---
 ```
-register_label(
-  name: "python",
-  description: "Python programming language and ecosystem"
-)
-```
+Use `$ARGUMENTS`/`$1`/`$2` for positional inputs, `` !`shell command` `` to inline live shell output, `@path` to inline file contents.
 
-### 7.6 Versioning Pattern
+### 7.4 Every subagent prompt includes
 
-When updating existing resources:
-
-- **First version**: Save as-is
-- **Subsequent versions**: Create new version (e.g., `script_name_v2.sh`) rather than overwriting
-- **Exception**: Only overwrite if explicitly authorized and backup is sufficient
-
-The backup system automatically keeps last 3 versions in `.backups/` directory.
+- `# Identity` — role statement
+- Domain-specific rules (where applicable)
+- `## Pipeline` — how it approaches its work
+- `## Error Handling` — what to do on failure, when to stop vs. retry, when to report back instead of looping
+- `## Known Quirks` — self-learning section (§5)
 
 ---
 
-## 8. Critical Files Reference
+## 8. Extending the System
 
-| File | Size | Purpose | Edit By |
-|------|------|---------|---------|
-| `core/mcp-server/index.ts` | 500+ lines | MCP server, all tool implementations | mcp-developer agent, rebuild after changes |
-| `plugin.json` | 20 lines | MCP server registration manifest, tool registry | Manual edit + `npm run build` to register |
-| `package.json` | 16 lines | Node.js dependencies and build scripts | Manual or npm CLI |
-| `tsconfig.json` | ~15 lines | TypeScript compiler configuration | Rarely modified |
-| `library/taxonomy.json` | ~30 lines | Label registry (allowed labels) | `register_label` MCP tool only |
-| `library/bootstrap/core_engine_protocol.md` | 27 lines | Core orchestration rules and delegation patterns | antiengine-builder agent only |
-| `library/bootstrap/ae-chains.md` | 54 lines | Orchestration pipeline and task delegation | antiengine-builder agent only |
-| `library/bootstrap/manual-book.md` | 49 lines | Additional protocol documentation | antiengine-builder agent only |
-| `agents/antiengine-builder/AGENT.md` | 200+ lines | Builder agent system prompt (critical reference) | antiengine-builder agent only |
-| `agents/*/AGENT.md` | varies | Individual specialist agent prompts | Respective agents or antiengine-builder |
-| `agents/*/references/quirks.md` | varies | Self-learned knowledge and bug tracking | `append_quirk` MCP tool |
-| `library/domain_rules/*.md` | 10-25 lines | Technology-specific guidance (Swift, TypeScript, etc.) | antiengine-builder agent only |
-| `library/agent_rules/*.md` | 10-25 lines | Agent class patterns (Developer, Researcher, etc.) | antiengine-builder agent only |
-| `skills/*/SKILL.md` | varies | Executable skill definitions | antiengine-builder or manual |
+### 8.1 Adding a new agent
+
+Ask `antiengine-builder` (or do it directly): create `.claude/agents/<name>.md` following the schema in §7.2, with Identity/Rules/Pipeline/Error Handling/Known Quirks sections. No import/registry step — the file existing under `.claude/agents/` is sufficient for Claude Code to discover it.
+
+### 8.2 Adding a new slash command
+
+Create `.claude/commands/<name>.md` (or `<namespace>/<name>.md` for `/namespace:name`) following the schema in §7.3.
+
+### 8.3 Adding a reference doc
+
+Create `docs/agent-rules/domain/<topic>.md` or `docs/agent-rules/class/<role>.md` with a simple `description` frontmatter field and the actual guidance as the body. Update `docs/agent-rules/README.md`'s index. Any subagent that needs it just `Read`s it by path.
 
 ---
 
-## 9. Setup & Installation
+## 9. Critical Files Reference
 
-### 9.1 Prerequisites
-
-- **Node.js**: 18.x or later (for TypeScript 5.3.3 and esbuild)
-- **npm**: Latest stable version
-- **Git**: For repository cloning
-- **Bash**: For install.sh execution
-- **Google Gemini API Key**: For agent operations (set in .env)
-
-### 9.2 Installation Steps
-
-```bash
-# Clone repository to Gemini plugin directory
-git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git ~/.gemini/config/plugins/antiengine
-
-# Enter directory
-cd ~/.gemini/config/plugins/antiengine
-
-# Run installation script
-./install.sh
-```
-
-The `install.sh` script:
-1. Verifies correct installation directory
-2. Runs `npm install` in `core/mcp-server/`
-3. Builds MCP server via `npm run build`
-4. Creates necessary directory structure
-
-### 9.3 Local Development Setup
-
-After installation:
-
-```bash
-# Install dependencies
-npm install
-
-# Build MCP server
-npm run build
-
-# Test MCP tool availability
-node test_mcp.js
-
-# Test specific tool invocation
-node run_mcp.js
-```
-
-### 9.4 Environment Variables
-
-Copy `.env.template` to `.env` and set:
-
-```bash
-GEMINI_API_KEY=your_api_key_here
-```
-
-This is required for agents that spawn subagents or use external APIs.
-
-### 9.5 Verifying Installation
-
-After setup, verify the system works:
-
-```bash
-# Check MCP server bundle exists
-ls -lh dist/mcp-server.js
-
-# Test tool availability
-node test_mcp.js
-# Output should list 10 tools: search_library, get_resource_content, save_to_library, etc.
-
-# Check library structure
-ls library/
-# Should contain: agents, domain_rules, agent_rules, bootstrap, etc.
-```
+| File | Purpose |
+|---|---|
+| `.claude/agents/*.md` | The 13 subagent definitions |
+| `.claude/commands/*.md` | Slash commands (`/ae-init`, `/git:flow`) |
+| `.claude/settings.json` | Permission rules (allow/ask/deny) — the structural safety mechanism |
+| `docs/agent-rules/domain/*.md`, `docs/agent-rules/class/*.md` | Reference docs, read directly by subagents |
+| `docs/agent-rules/README.md` | Index of reference docs |
+| `install.sh` | Copies `.claude/` into a target project or `~/.claude` |
+| `core/templates/AGENT_PROMPT_TEMPLATE.md` | Starting point for a new subagent |
+| `core/templates/SKILL_TEMPLATE.md` | Starting point for a new slash command |
 
 ---
 
-## 10. Troubleshooting & Self-Learning
+## 10. Setup & Installation
 
-### 10.1 Common Issues & Solutions
+### Prerequisites
+- Claude Code (CLI, desktop, or web)
+- Bash (for `install.sh`)
 
-| Issue | Root Cause | Solution |
-|-------|-----------|----------|
-| `antiengine-guard Error: Missing YAML frontmatter` | Resource missing `---` delimiters | Add YAML block: `---\nname: ...\n---\n` at the top |
-| `Label '[label]' is not registered in taxonomy` | Using unregistered label | Call `register_label` first, then use in resource |
-| `Script rejected. Mandatory daily logging system is missing` | Script lacks logs/ directory pattern | Add logging: `LOG_DIR="logs/script"; mkdir -p "$LOG_DIR"; LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d).log"` |
-| `antiengine-guard Syntax Error: [error]` | Script has syntax errors | Check syntax: `bash -n script.sh` (bash) or `node --check script.js` (Node) |
-| `save_to_library fails: Frontmatter MUST include 'danger_details'` | Missing required YAML field | Add: `danger_details: "Description of risk or 'None'."` |
-| Resource path resolution errors | Using relative paths in MCP calls | Always use absolute paths (e.g., `/home/user/project/...`) |
-| Backup file accumulation | More than 3 versions kept | Automatic cleanup occurs; manually remove if needed via `.backups/` |
-
-### 10.2 Self-Learning Mechanisms
-
-The quirks system allows agents to record and learn from discoveries:
-
-**Recording a Quirk**:
-```
-append_quirk(
-  agentName: "antiengine-builder",
-  quirkText: "
-- **Date:** 2026-06-19
-  - **Problem:** save_to_library path resolution failed on Windows
-  - **Environment:** Windows 11, Node.js 22.x, core/mcp-server/index.ts
-  - **Solution:** Use path.join() instead of string concatenation for cross-platform paths
-"
-)
-```
-
-**Quirk Format**:
-- **Date**: YYYY-MM-DD when discovered
-- **Problem**: What went wrong or was unexpected
-- **Environment**: OS, version, tool, specific context
-- **Solution**: How to fix or workaround
-
-**Usage**:
-- Agents read `agents/<name>/references/quirks.md` on startup
-- Agents append new quirks when discovering bugs or workarounds
-- Knowledge accumulates, improving decision-making
-
-### 10.3 MCP Debugging
-
-**Test Tool Availability**:
+### Install
 ```bash
-node test_mcp.js
+git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git
+cd Antigravity.Engine
+./install.sh          # into the current project's .claude/
+# or:
+./install.sh user     # into ~/.claude/ for every project
 ```
-Lists all registered tools and their schemas via JSON-RPC.
+No build step, no API key of its own required — subagents run under whatever Claude Code session invokes them.
 
-**Test Tool Invocation**:
+### Verify
 ```bash
-node run_mcp.js
+ls .claude/agents .claude/commands   # confirm files landed
 ```
-Spawns MCP server and tests actual tool calls.
-
-**Manual JSON-RPC Testing**:
-The MCP server accepts JSON-RPC 2.0 requests via stdio:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "search_library",
-    "arguments": {
-      "type": "agents",
-      "query": "architect"
-    }
-  }
-}
-```
-
-### 10.4 Backup File Management
-
-Backups are stored in `.backups/` with timestamp suffixes:
-
-```
-library/.backups/
-├── agents/
-│   └── my-agent.v1234567890
-│   └── my-agent.v1234567891
-│   └── my-agent.v1234567892
-└── domain_rules/
-    └── builder_rules_domain_swift.md.v...
-```
-
-**Cleanup**:
-- Automatic: Keeps last 3 versions
-- Manual: Delete old `.v` files if disk space needed
-- Recovery: Restore with `cp .backups/type/name.vOLDEST type/name`
-
-### 10.5 Performance & Optimization
-
-**Large Library Searches**:
-- Use specific `type` parameter to narrow search
-- Use `query` keywords to filter results
-- Consider caching frequently accessed resources
-
-**Backup System**:
-- Automatic cleanup keeps only 3 versions
-- Log files grow daily; implement rotation in scripts
-- Archive old logs to save space
+Then open Claude Code in the target project and run `/ae-init` to confirm the command and `project-architect` delegation work end-to-end.
 
 ---
 
-## Key Takeaways for AI Assistants
+## 11. Troubleshooting
 
-1. **Think like an Orchestrator**: Delegate specialized work to appropriate agents; never code directly
-2. **Respect Validation**: antiengine-guard is your guardian—follow YAML/label/logging rules strictly
-3. **Use MCP Tools**: All persistence happens through MCP server tools, never direct file writes
-4. **Check Before You Act**: Search library, get resource content, understand current state
-5. **Learn & Record**: Use quirks system to capture discoveries and improve over time
-6. **Follow Conventions**: Naming, file organization, and patterns are documented for consistency
-7. **Taxonomy Controls Labels**: Register before using new labels; controlled vocabulary aids discoverability
-8. **Backup is Automatic**: Last 3 versions kept; safe to experiment and iterate
-9. **Build & Test**: Always rebuild after TypeScript changes; test with test_mcp.js
-10. **Document Intent**: Use danger_level and danger_details to communicate risk clearly
+| Issue | Likely cause | Fix |
+|---|---|---|
+| A subagent isn't auto-selected for a request that should route to it | `description` isn't trigger-phrased clearly enough | Rewrite it as "Use this agent when `<concrete condition>`." |
+| A subagent tries to use a tool and is blocked | Tool isn't in its `tools:` allowlist | Either that's working as intended (tighten the request/route to a different agent), or add the tool if the agent genuinely needs it |
+| A destructive command runs without confirmation | `.claude/settings.json`'s `ask`/`deny` lists don't cover it | Add the specific `Bash(...)` pattern to `ask` or `deny` |
+| An agent's prompt references a tool/mechanism that doesn't exist (`invoke_subagent`, `thinking_level`, `run_command`, etc.) | Leftover from the retired Gemini/MCP architecture | Replace with the real Claude Code equivalent — see §2.2 and the agent reference table in §3 |
 
 ---
 
-## Quick Reference Commands
-
-```bash
-# Build
-npm run build
-
-# Test
-node test_mcp.js          # List tools
-node run_mcp.js           # Invoke tools
-
-# Install
-./install.sh
-
-# Development
-./dev_link.sh             # Create symlink
-
-# Common MCP Patterns
-search_library(type: "agents", query: "architect")
-get_resource_content(type: "domain_rules", name: "builder_rules_domain_swift.md")
-save_to_library(type: "skills", name: "new-skill", content: "...")
-register_label(name: "python", description: "Python language")
-import_resource(type: "agents", name: "security-analyst", targetProjectDir: "/path/to/project")
-init_project(targetDir: "/path/to/new/project")
-get_taxonomy()
-append_quirk(agentName: "agent-name", quirkText: "...")
-finish_builder_task()
-```
-
----
-
-**Last Updated**: July 2026  
-**For Questions**: See README.md or check agent-specific task_guidelines.md files
+**Last Updated**: 2026 — Claude Code native rewrite (MCP server and Gemini-specific tooling fully retired).

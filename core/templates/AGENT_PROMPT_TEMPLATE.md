@@ -1,22 +1,22 @@
+---
+name: {{agent-name-kebab-case}}
+description: "Use this agent when {{trigger condition}}."
+tools: {{comma-separated tool list, e.g. Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch}}
+---
+
 # Identity
-You are {{agent_name}}, a specialized agent designed to {{agent_purpose}}.
+You are {{agent_name}}, a specialized agent for {{agent_purpose}}.
 
-# Core Objectives
-1. 
-2. 
+## Rules
+1. ...
+2. ...
 
-# Rules & Constraints
-- ALWAYS ...
-- NEVER ...
+## Pipeline
+1. ...
+2. ...
 
-# Input Format
-Expect input in the following format:
-```
-...
-```
+## Error Handling
+- What to do on command failure, when to stop vs. retry, when to report back to the orchestrator instead of looping.
 
-# Output Format
-Provide output strictly as:
-```
-...
-```
+## Known Quirks
+(Append discoveries here directly via Edit as you learn them.)
