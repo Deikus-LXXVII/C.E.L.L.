@@ -9,17 +9,51 @@ C.E.L.L. upgrades the main agent from a solo coder into an **Orchestrator**. Lik
 C.E.L.L. ships as a native Claude Code plugin — no cloning, no build step. Inside a Claude Code session:
 
 ```
-/plugin marketplace add Deikus-LXXVII/Antigravity.Engine
+/plugin marketplace add Deikus-LXXVII/C.E.L.L.
 /plugin install cell@cell
 ```
 
 Or, as a single shell command (equivalent, non-interactive):
 
 ```bash
-claude plugin marketplace add Deikus-LXXVII/Antigravity.Engine && claude plugin install cell@cell
+claude plugin marketplace add Deikus-LXXVII/C.E.L.L. && claude plugin install cell@cell
 ```
 
-That's it — all 14 cells and both slash commands are now available in every project. Update anytime with `/plugin update cell@cell`.
+That's it — all 14 cells and both slash commands are now available in every project.
+
+## Updating
+
+Since C.E.L.L. doesn't pin a `version` in its manifest, **every push to this repo is immediately available as a new version** — nothing needs to be tagged or released for an update to be pickable up.
+
+**Automatic (recommended, one-time setup):** third-party marketplaces have auto-update off by default in Claude Code. Turn it on once and updates apply automatically at every session start:
+1. Run `/plugin`
+2. Go to **Marketplaces** → select **cell**
+3. Choose **Enable auto-update**
+
+From then on, Claude Code refreshes the marketplace and updates the plugin at startup, and notifies you to run `/reload-plugins` when something changed.
+
+**Manual, anytime:**
+```
+/plugin marketplace update cell
+/plugin update cell@cell
+/reload-plugins
+```
+Or non-interactively:
+```bash
+claude plugin marketplace update cell && claude plugin update cell@cell
+```
+
+**For teams**, an admin can force auto-update on for everyone without each person toggling it, by adding this to the project's `.claude/settings.json`:
+```json
+{
+  "extraKnownMarketplaces": {
+    "cell": {
+      "source": { "source": "github", "repo": "Deikus-LXXVII/C.E.L.L." },
+      "autoUpdate": true
+    }
+  }
+}
+```
 
 <details>
 <summary>Alternative: manual install (no plugin marketplace)</summary>
@@ -27,14 +61,20 @@ That's it — all 14 cells and both slash commands are now available in every pr
 For environments where plugin marketplaces are restricted, or for local development:
 
 ```bash
-git clone https://github.com/Deikus-LXXVII/Antigravity.Engine.git
-cd Antigravity.Engine
+git clone https://github.com/Deikus-LXXVII/C.E.L.L..git
+cd C.E.L.L.
 ./install.sh            # installs into the current project's .claude/
 # or:
 ./install.sh user        # installs into ~/.claude/ for every project (recommended)
 ```
 
 No build step is required either way — cells and commands are plain markdown files.
+
+**Updating this path**: there's no auto-update for a manually-installed copy. Pull the latest changes and re-run `install.sh` to refresh the installed files:
+```bash
+git pull
+./install.sh user   # or ./install.sh, matching however you installed originally
+```
 </details>
 
 ## How to use: Genesis

@@ -297,7 +297,7 @@ No cloning, no build step. Every cell becomes immediately available, namespaced 
 For environments where plugin marketplaces are restricted:
 ```bash
 git clone <this repository's URL>
-cd Antigravity.Engine
+cd C.E.L.L.
 ./install.sh          # into the current project's .claude/
 # or:
 ./install.sh user     # into ~/.claude/ for every project (recommended — makes every cell available everywhere, so /cell-create never needs to vendor a local copy of the starter cells)
@@ -318,6 +318,14 @@ To test changes to this repo's own plugin without publishing:
 claude --plugin-dir /path/to/this/repo
 ```
 
+### Updating
+
+No `version` is pinned in `plugin.json`/`marketplace.json`, so every push to this repo is immediately available as a new version — nothing to tag or release.
+
+- **Plugin path, automatic (recommended):** third-party marketplaces default to auto-update **off**. Enable it once per user via `/plugin` → **Marketplaces** → `cell` → **Enable auto-update**; from then on, updates apply at every session start (Claude Code prompts for `/reload-plugins` when something changed). Teams can force this org-wide by adding `"autoUpdate": true` to a `cell` entry under `extraKnownMarketplaces` in their project's `.claude/settings.json`.
+- **Plugin path, manual:** `/plugin marketplace update cell` then `/plugin update cell@cell`, then `/reload-plugins`.
+- **Manual/`install.sh` path:** no auto-update mechanism exists for this path — `git pull` then re-run `./install.sh` (or `./install.sh user`) to refresh the installed copy.
+
 ---
 
 ## 11. Troubleshooting
@@ -330,6 +338,7 @@ claude --plugin-dir /path/to/this/repo
 | `/cell-create` can't find `cell-architect`/`cell-environment`/`cell-builder` to seed a new project | C.E.L.L. wasn't installed (neither `/plugin install cell@cell` nor `install.sh user` has been run), and no local library clone was found | Install via the plugin marketplace (recommended, §10) or run `install.sh user` once — either makes the three seed cells available everywhere so nothing needs vendoring per-project |
 | `/plugin marketplace add` fails or can't find the repo | Repo is private, or the `owner/repo` shorthand is wrong | Make the GitHub repo public (Settings → General → Danger Zone → Change visibility), then retry with the exact `owner/repo` |
 | A cell's prompt references a tool/mechanism that doesn't exist (`invoke_subagent`, `thinking_level`, `run_command`, etc.) | Leftover from the retired Gemini/MCP architecture | Replace with the real Claude Code equivalent — see §2.2 and the cell reference table in §3 |
+| Pushed changes to this repo don't show up for plugin users | Auto-update is off by default for third-party marketplaces, or `/reload-plugins` wasn't run after an update | Run `/plugin marketplace update cell && /plugin update cell@cell` then `/reload-plugins`, or enable auto-update per §10 |
 
 ---
 
