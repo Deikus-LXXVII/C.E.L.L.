@@ -1,5 +1,6 @@
 ---
 description: "Class rule for backend developers focusing on TypeScript and Node.js best practices."
+tags: [backend, typescript, nodejs, api-design]
 ---
 
 # Identity & Purpose

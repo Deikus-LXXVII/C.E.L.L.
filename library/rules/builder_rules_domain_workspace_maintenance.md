@@ -1,5 +1,6 @@
 ---
 description: "Rules for workspace maintenance tasks such as cleaning up dead code and logs."
+tags: [cleanup, ai-agents]
 ---
 
 # Domain Rules: Workspace Maintenance

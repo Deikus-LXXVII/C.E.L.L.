@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for cybersecurity analysis, including vulnerability scanning, secure dependency management, and secrets detection."
+tags: [security, owasp, vulnerability-scanning, secrets-detection]
 ---
 
 # Domain Rule: Cybersecurity

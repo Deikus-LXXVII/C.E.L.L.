@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for Swift 5.10+, SwiftUI, and Foundation on macOS."
+tags: [swift, macos, swiftui, concurrency]
 ---
 
 # Swift & macOS Development Standards

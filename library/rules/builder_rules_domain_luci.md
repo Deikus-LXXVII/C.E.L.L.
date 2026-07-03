@@ -1,5 +1,6 @@
 ---
 description: "Architectural rules for OpenWrt LuCI web interface (ES6+, CSR)."
+tags: [openwrt, luci, frontend, javascript, csr]
 ---
 
 # Builder Domain Rules: OpenWrt LuCI

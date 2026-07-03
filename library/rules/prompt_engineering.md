@@ -1,5 +1,6 @@
 ---
 description: "Guidance for writing/refining subagent and slash-command prompts for Claude models in this repository."
+tags: [prompt-engineering, claude, agent-design]
 ---
 # Domain Rules: Prompt Engineering (Claude)
 

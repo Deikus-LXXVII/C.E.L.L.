@@ -1,5 +1,6 @@
 ---
 description: "Global domain rules for technical documentation."
+tags: [documentation]
 ---
 
 # Domain: Technical Documentation

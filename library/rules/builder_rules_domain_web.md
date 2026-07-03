@@ -1,5 +1,6 @@
 ---
 description: "Rules for generating agents working with the Web."
+tags: [web, research, ai-agents]
 ---
 
 # Builder Domain Rules: Web

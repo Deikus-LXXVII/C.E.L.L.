@@ -1,5 +1,6 @@
 ---
 description: "Rules for autonomous agent testing and sandbox isolation."
+tags: [agentic-testing, sandboxing, testing, ai-agents]
 ---
 # Domain: Agentic Testing
 

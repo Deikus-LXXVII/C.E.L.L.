@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for advanced web search."
+tags: [web-search, research, rag, serp]
 ---
 
 # Builder Domain Rules: Advanced Search

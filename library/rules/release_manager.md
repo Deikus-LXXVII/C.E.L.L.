@@ -1,5 +1,6 @@
 ---
 description: "Class rule for release managers focusing on version control workflows and deployment pipelines."
+tags: [git, release-management, ci-cd, deployment]
 ---
 
 # Identity & Purpose

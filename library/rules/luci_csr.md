@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for modern Client-Side Rendering (CSR) apps in LuCI using ES6+ and OpenWrt JSON-RPC."
+tags: [openwrt, luci, frontend, javascript, csr]
 ---
 
 # LuCI CSR (Client-Side Rendering) Development Standards

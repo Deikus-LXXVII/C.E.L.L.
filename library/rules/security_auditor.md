@@ -1,5 +1,6 @@
 ---
 description: "Class rules for the security_auditor role, responsible for analyzing written code and project structure."
+tags: [security, code-review, vulnerability-scanning]
 ---
 
 # Class Rule: Security Auditor

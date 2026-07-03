@@ -1,5 +1,6 @@
 ---
 description: "Class rules for technical writers."
+tags: [documentation]
 ---
 
 # Class: Technical Writer

@@ -1,5 +1,6 @@
 ---
 description: "Rules for interacting with Git, GitHub, and other version control systems."
+tags: [git]
 ---
 # Domain: Version Control
 

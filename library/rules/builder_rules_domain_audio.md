@@ -1,5 +1,6 @@
 ---
 description: "Rules for building audio pipelines (STT, TTS, Routing) on Apple Silicon."
+tags: [audio, macos, apple-silicon, stt, tts, real-time]
 ---
 
 # Builder Domain Rules: Audio Pipelines (Apple Silicon)

@@ -1,5 +1,6 @@
 ---
 description: "Behavioral rules and mandate for QA engineering agents."
+tags: [qa, testing, verification]
 ---
 # Class: QA Engineer
 

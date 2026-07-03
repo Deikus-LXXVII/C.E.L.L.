@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for interacting with and setting up the user's local OS environment."
+tags: [environment-setup, macos, tooling, idempotency]
 ---
 
 # Domain Rules: Local Environment

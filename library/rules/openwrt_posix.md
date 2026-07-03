@@ -1,5 +1,6 @@
 ---
 description: "Domain rules for OpenWrt 21.02+, POSIX Shell (ash), procd, ubus, and UCI."
+tags: [openwrt, posix, embedded-linux, uci, procd, ubus]
 ---
 
 # OpenWrt System & Shell Development Standards

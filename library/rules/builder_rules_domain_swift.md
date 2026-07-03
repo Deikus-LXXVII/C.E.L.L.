@@ -1,5 +1,6 @@
 ---
 description: "Architectural rules for Swift 5.10+ development on macOS."
+tags: [swift, macos, concurrency, cryptokit, xpc]
 ---
 
 # Builder Domain Rules: macOS Swift 5.10+

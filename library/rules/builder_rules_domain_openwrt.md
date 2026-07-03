@@ -1,5 +1,6 @@
 ---
 description: "Architectural rules for OpenWrt development (POSIX, UCI, procd, ubus)."
+tags: [openwrt, posix, embedded-linux, uci, procd, ubus]
 ---
 
 # Builder Domain Rules: OpenWrt
