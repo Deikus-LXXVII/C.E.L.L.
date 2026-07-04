@@ -6,14 +6,14 @@
 # fallback for environments where plugin marketplaces are restricted (e.g.
 # managed/locked-down settings), for local development/testing, or for a
 # target project that needs to work in remote/cloud Claude Code sessions
-# (see "cloud" mode below).
+# (see "sync" mode below).
 #
 # Copies this repo's agents/ (cells) and commands/ into a target Claude Code
 # project's .claude/ directory (default), into ~/.claude/ for global,
-# cross-project availability ("user" mode), into the target project's own
-# .claude/ together with a committable copy of the library ("cloud" mode), or
-# into the target project's own .claude/ with a LIVE, auto-refreshing git
-# clone of the library instead of a frozen copy ("sync" mode — needs network).
+# cross-project availability ("user" mode), or into the target project's own
+# .claude/ with a LIVE, auto-refreshing git clone of the library ("sync"
+# mode — needs network; the clone/symlink are always .gitignore'd so they
+# never pollute the consumer project's own history).
 # No build step required — cells and commands are plain markdown files.
 
 set -euo pipefail
@@ -21,7 +21,7 @@ set -euo pipefail
 echo "Installing C.E.L.L. for Claude Code (manual/fallback method)..."
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODE="${1:-project}"   # project | user | cloud | sync
+MODE="${1:-project}"   # project | user | sync
 
 if [ "$MODE" = "user" ]; then
     DEST="$HOME/.claude"
@@ -35,21 +35,12 @@ mkdir -p "$DEST/agents" "$DEST/commands"
 cp -R "$REPO_DIR/agents/." "$DEST/agents/"
 cp -R "$REPO_DIR/commands/." "$DEST/commands/"
 
-if [ "$MODE" = "user" ] || [ "$MODE" = "cloud" ]; then
+if [ "$MODE" = "user" ]; then
     LIBRARY_DEST="$DEST/cell-library"
     echo "Installing C.E.L.L. library (tagged rules/agents/books) to $LIBRARY_DEST"
     mkdir -p "$LIBRARY_DEST/agents" "$LIBRARY_DEST/rules" "$LIBRARY_DEST/books"
     cp -R "$REPO_DIR/library/." "$LIBRARY_DEST/"
     chmod +x "$LIBRARY_DEST/find-by-tag.sh"
-fi
-
-if [ "$MODE" = "cloud" ]; then
-    echo "NOTE: cloud mode commits a frozen snapshot of the library into THIS project's"
-    echo "      .claude/cell-library/ — commit it to git so a remote/cloud Claude Code"
-    echo "      session (which clones this repo onto a fresh, ephemeral machine with no"
-    echo "      persistent ~/.claude/) still has it. Tradeoff: this project no longer"
-    echo "      shares newly-generated library resources with other projects on the same"
-    echo "      machine — re-run './install.sh cloud' to refresh the snapshot when needed."
 fi
 
 if [ "$MODE" = "sync" ]; then
@@ -100,9 +91,6 @@ if [ "$MODE" = "user" ]; then
     echo "Library (tagged rules/agents/books) installed to $HOME/.claude/cell-library/"
     echo "NOTE: this is a copy, not a symlink — re-run './install.sh user' after 'git pull'"
     echo "      on this repo to refresh it."
-elif [ "$MODE" = "cloud" ]; then
-    echo "Library (tagged rules/agents/books) installed to $(pwd)/.claude/cell-library/"
-    echo "Commit .claude/ to this project's own git repo for it to survive in cloud sessions."
 elif [ "$MODE" = "sync" ]; then
     echo "Library linked to $(pwd)/.claude/cell-library/ (live clone at .claude/cell-library-src/)"
     echo ".gitignore updated so this project's own repo never commits the clone/symlink."
@@ -112,10 +100,8 @@ echo ""
 echo "Try it: open Claude Code in this project and run /cell-create"
 echo "Usage: ./install.sh          — install into the current project's .claude/"
 echo "       ./install.sh user     — install into ~/.claude/ for all projects (recommended)"
-echo "       ./install.sh cloud    — install into THIS project's .claude/, including a"
-echo "                               committable library snapshot (for remote/cloud sessions)"
 echo "       ./install.sh sync     — install into THIS project's .claude/, with a live,"
-echo "                               auto-refreshing git clone of the library instead of"
-echo "                               a frozen snapshot (needs network access)"
+echo "                               auto-refreshing git clone of the library (needs"
+echo "                               network access) — always .gitignore'd, never committed"
 echo ""
 echo "Prefer the plugin install instead? See README.md for the one-line /plugin method."
