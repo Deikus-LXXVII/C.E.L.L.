@@ -26,7 +26,7 @@ env/
 *.swp
 *.swo
 
-# Antigravity Specific
+# C.E.L.L. Specific
 playground/
 .agents/
 docs.llm/
@@ -37,3 +37,6 @@ docs.llm/
 node_modules/
 dist/
 *.vsix
+
+# Claude Code personal settings (not team-wide policy)
+.claude/settings.local.json
